@@ -97,8 +97,29 @@
     #_(swap! state  (fn [{:keys[notes] :as state}]
                     (debug (assoc state :notes (concat notes new-notes)))))))
 
+(defn update-sequence2! [beat time steps]
+  (let [now (.-currentTime context)
+        _ (prn "diff" (- now time))
+        new-notes (->> steps
+                       (map #(- % beat))
+                       (map #(* secs-per-tick %))
+                       (map #(+ time %))
+                       (take-while #(< % (+ now 0.75)))
+                       (debug))]
+
+    (doseq [n new-notes]
+      (beep 400 n 0.05))
+    (let [c (count new-notes)
+          beat' (+ c beat)
+          time' (+ (* secs-per-tick c) time)]
+      (js/setTimeout #(update-sequence2! beat' time' (drop c steps)) 500))
+
+    #_(swap! state  (fn [{:keys[notes] :as state}]
+                      (debug (assoc state :notes (concat notes new-notes)))))))
+
 (defonce update-cb (js/setInterval update-sequence! 500))
 
+(def s (atom [0 3 6 10 12]))
 
 ;(defn start []
 ;  (.connect osc gain)
