@@ -24,11 +24,10 @@
 
 (def bpm 140)
 
-(def secs-per-tick (/ (/ 1 (/ bpm 60)) 4))
+(def secs-per-tick #(/ (/ 1 (/ bpm 60)) 4))
 
 (defn beep
   ([f]
-
     (beep f 0.05))
   ([f t]
     (beep f (.-currentTime context) t))
@@ -39,26 +38,24 @@
      (.start osc start)
      (.stop osc (+ start t)))))
 
-(defn update-sequence2! [beat time steps]
-  (let [now (.-currentTime context)
-        new-notes (->> steps
+(defn play-sequence! [beat time sequence]
+  (let [
+        now (.-currentTime context)
+        new-notes (->> sequence
                        (map #(- % beat))
-                       (map #(* secs-per-tick %))
+                       (map #(* (secs-per-tick) %))
                        (map #(+ time %))
                        (take-while #(< % (+ now 0.75))))]
 
     (doseq [n new-notes]
       (beep 400 n 0.05))
     (let [diff (- now time)
-          c (max (int (/ diff secs-per-tick)) (count new-notes))
+          c (max (int (/ diff (secs-per-tick))) (count new-notes))
 
           _ (prn "diff" diff)
           beat' (+ c beat)
-          time' (+ (* secs-per-tick c) time)]
-      (js/setTimeout #(update-sequence2! beat' time' (drop (count new-notes) steps)) 500))
-
-    #_(swap! state  (fn [{:keys[notes] :as state}]
-                      (debug (assoc state :notes (concat notes new-notes)))))))
+          time' (+ (* (secs-per-tick) c) time)]
+      (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
 
 (def s (atom [0 3 6 10 12]))
