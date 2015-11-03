@@ -26,6 +26,10 @@
 
 (def secs-per-tick #(/ (/ 1 (/ bpm 60)) 4))
 
+(defn inf-seq [sequence]
+  (-> (map (fn [l i] (map #(+ % (* 16 i)) l)) (repeatedly (fn [_] sequence)) (range))
+      (flatten)))
+
 (defn beep
   ([f]
     (beep f 0.05))
@@ -39,26 +43,27 @@
      (.stop osc (+ start t)))))
 
 (defn play-sequence! [beat time sequence]
-  (let [
+  (let [spt (secs-per-tick)
         now (.-currentTime context)
         new-notes (->> sequence
                        (map #(- % beat))
-                       (map #(* (secs-per-tick) %))
+                       (map #(* spt %))
                        (map #(+ time %))
                        (take-while #(< % (+ now 0.75))))]
 
     (doseq [n new-notes]
       (beep 400 n 0.05))
     (let [diff (- now time)
-          c (max (int (/ diff (secs-per-tick))) (count new-notes))
+          c (max (int (/ diff spt)) (count new-notes))
 
           _ (prn "diff" diff)
           beat' (+ c beat)
-          time' (+ (* (secs-per-tick) c) time)]
+          time' (+ (* spt c) time)]
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
 
 (def s (atom [0 3 6 10 12]))
+
 
 ;(defn start []
 ;  (.connect osc gain)
