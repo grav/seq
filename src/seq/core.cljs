@@ -13,6 +13,8 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
 
+(defonce app-state (atom {:bpm 120
+                          :sequence [0 3 6 10 12]}))
 
 (defonce context (js/AudioContext.))
 
@@ -22,13 +24,15 @@
 
 (set! (.. gain -gain -value) 0.3)
 
-(def bpm 140)
+(defn secs-per-tick
+  [bpm]
+  (/ (/ 1 (/ bpm 60)) 4))
 
-(def secs-per-tick #(/ (/ 1 (/ bpm 60)) 4))
-
-(defn inf-seq [sequence]
-  (-> (map (fn [l i] (map #(+ % (* 16 i)) l)) (repeatedly (fn [_] sequence)) (range))
-      (flatten)))
+(defn inf-seq [f]
+  (let [length 16
+        f' #(filter (partial > length) (f))]
+    (-> (map (fn [l i] (map #(+ % (* length i)) l)) (repeatedly f') (range))
+       (flatten))))
 
 (defn beep
   ([f]
@@ -43,7 +47,7 @@
      (.stop osc (+ start t)))))
 
 (defn play-sequence! [beat time sequence]
-  (let [spt (secs-per-tick)
+  (let [spt (secs-per-tick (:bpm @app-state))
         now (.-currentTime context)
         new-notes (->> sequence
                        (map #(- % beat))
@@ -60,8 +64,5 @@
           beat' (+ c beat)
           time' (+ (* spt c) time)]
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
-
-
-(def s (atom [0 3 6 10 12]))
 
 
