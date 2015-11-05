@@ -65,11 +65,3 @@
 (def s (atom [0 3 6 10 12]))
 
 
-;(defn start []
-;  (.connect osc gain)
-;  (.connect gain (.-destination context))
-;  (set! (.. osc -frequency -value) 440)
-;
-;  (.start osc 0))
-;
-;
