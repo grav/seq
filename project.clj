@@ -7,9 +7,11 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.122"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [org.omcljs/om "0.9.0"]
                  [figwheel-sidecar "0.4.1"]]
 
-  :plugins [[lein-cljsbuild "1.1.0"]]
+  :plugins [[lein-cljsbuild "1.1.0"]
+            [lein-figwheel "0.4.1"]]
 
   :source-paths ["src"]
 
@@ -45,7 +47,7 @@
 
              ;; Server Ring Handler (optional)
              ;; if you want to embed a ring handler into the figwheel http-kit
-             ;; server, this is for simple ring servers, if this
+             ;; server, this is for simple ring servers, if this{
              ;; doesn't work for you just run your own server :)
              ;; :ring-handler hello_world.server/handler
 

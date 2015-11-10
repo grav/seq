@@ -1,2 +1,14 @@
 /* some style */
 
+@keyframes blink0 {
+  0%   { color: black; }
+  50%   { color: red; }
+  100%   { color: black; }
+}
+
+
+@keyframes blink1 {
+  0%   { color: black; }
+  50%   { color: red; }
+  100%   { color: black; }
+}

@@ -1,5 +1,6 @@
 (ns ^:figwheel-always seq.core
-    (:require))
+  (:require [om.core :as om]
+            [om.dom :as dom]))
 
 (enable-console-print!)
 
@@ -11,9 +12,9 @@
   ;; optionally touch your app-state to force rerendering depending on
   ;; your application
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
-)
+  )
 
-(defonce app-state (atom {:bpm 120
+(defonce app-state (atom {:bpm      120
                           :sequence [0 3 6 10 12]}))
 
 (defonce context (js/AudioContext.))
@@ -32,13 +33,13 @@
   (let [length 16
         f' #(filter (partial > length) (f))]
     (-> (map (fn [l i] (map #(+ % (* length i)) l)) (repeatedly f') (range))
-       (flatten))))
+        (flatten))))
 
 (defn beep
   ([f]
-    (beep f 0.05))
+   (beep f 0.05))
   ([f t]
-    (beep f (.-currentTime context) t))
+   (beep f (.-currentTime context) t))
   ([f start t]
    (let [osc (.createOscillator context)]
      (.connect osc gain)
@@ -65,4 +66,29 @@
           time' (+ (* spt c) time)]
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
+(defn widget [{:keys [sequence foo]} owner]
+  (reify
+    om/IRender
+    (render [this]
+      (prn "render")
+      (let [anim-name (str "blink" (mod (:anim-id (om/get-state owner)) 2))]
+        (dom/div nil
+                 (dom/div (clj->js {:style {:animationName           anim-name
+                                            :animationDuration       "1s"
+                                            :animationIterationCount 1}})
+                          "Sequence:"
+                          (apply dom/div nil sequence))
+                 (dom/div nil
+                          "Foo: "
+                          (str foo)))))
 
+    om/IWillReceiveProps
+    (will-receive-props [this next-props]
+      (prn "will-update")
+      (when (not= sequence (:sequence next-props))
+        (let [anim-id (inc (:anim-id (om/get-state owner)))]
+          (om/set-state! owner {:anim-id anim-id}))))))
+
+
+(om/root widget app-state
+         {:target (. js/document (getElementById "app"))})
