@@ -1,5 +1,5 @@
 (ns ^:figwheel-always seq.core
-    (:require))
+    (:require [reagent.core :as r]))
 
 (enable-console-print!)
 
@@ -13,8 +13,9 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
 
-(defonce app-state (atom {:bpm 120
-                          :sequence [0 3 6 10 12]}))
+(defonce app-state (r/atom {:bpm 120
+                          :sequence [0 3 6 10 12]
+                          :title "Hello"}))
 
 (defonce context (js/AudioContext.))
 
@@ -47,6 +48,7 @@
      (.stop osc (+ start t)))))
 
 (defn play-sequence! [beat time sequence]
+  (swap! app-state assoc :pointer (mod beat 16))
   (let [spt (secs-per-tick (:bpm @app-state))
         now (.-currentTime context)
         new-notes (->> sequence
@@ -66,3 +68,27 @@
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
 
+(defn step [{:keys [selected? playing?]}]
+  [:div {:style {:background-color (if playing? "yellow" "black")
+                 :height           46
+                 :width            46
+                 :padding          2}}
+   [:div {:style {:background-color (if selected? "red" "white")
+                  :height           "100%"
+                  :width            "100%"}}]])
+
+(defn header [{:keys [title]}]
+  [:div title])
+
+(defn root [_]
+  (let [{:keys [title sequence pointer]} @app-state]
+    [:div
+    [header {:title title}]
+    [:div {:style {:display "flex"}}
+     (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
+       (map (fn [s i] [:div {:key i} [step {:selected? s :playing? (= i pointer) }]]) bool-seq (range)))]]))
+
+(r/render [root] (js/document.getElementById "app"))
+
+(comment
+  (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
