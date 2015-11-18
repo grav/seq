@@ -7,7 +7,7 @@
       (map second)))
 
 (defn outputs [ma]
-  (->> (.-inputs ma)
+  (->> (.-outputs ma)
        (u/js-iterable->vec)
        (map second)))
 
