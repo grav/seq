@@ -83,32 +83,48 @@
 (defn header [{:keys [title]}]
   [:div title])
 
-(defn selector [opts]
-  [:select
-   (map (fn [k v] [:option {:key k
-                            :value k} v]) (range) opts)])
-
-(defn midi-selector [{:keys [inputs outputs]}]
-  [:div
-   [:div "Input: " [selector (map #(.-name %) inputs)]]
-   [:div "Output: " [selector (map #(.-name %) outputs)]]])
+(defn selector [keys vals current on-change]
+  [:select {:value current :on-change #(on-change (.-value (.-target %)))}
+   (map (fn [k v] [:option {:key   (or k "nil")
+                            :value k} v]) (cons nil keys) (cons "---" vals))])
 
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
-            (swap! app-state merge {:midi {:inputs  (m/inputs ma)
-                                           :outputs (m/outputs ma)}}))]
+                        (swap! app-state merge {:midi {:inputs  (m/inputs ma)
+                                                       :outputs (m/outputs ma)}}))]
     (-> (js/navigator.requestMIDIAccess)
-       (.then (fn [ma]
-                (save-devices! ma)
-                ;; Update devices continously
-                (set! (.-onstatechange ma) #(save-devices! ma)))))))
+        (.then (fn [ma]
+                 (save-devices! ma)
+                 ;; Update devices continously
+                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
+
+(defn handle-midi-select [state-key selection-key]
+  (fn [val]
+    (let [selected (->> (get-in @app-state [:midi state-key])
+                        (filter #(= (hash %) (int val)))
+                        (first))]
+      (swap! app-state assoc-in [:midi selection-key] selected))))
 
 (defn root [_]
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [title sequence pointer midi]} @app-state]
                                    [:div
-                                    (when midi
-                                      [midi-selector midi])
+
+                                    (when-let [{:keys [in out inputs outputs]} midi]
+                                      [:div
+                                       [:div "Input: " [selector
+                                                        (map hash inputs)
+                                                        (map #(.-name %) inputs)
+                                                        (hash in)
+                                                        (handle-midi-select :inputs :in)]]
+                                       [:div "Output: " [selector
+                                                         (map hash outputs)
+                                                         (map #(.-name %) outputs)
+                                                         (hash out)
+                                                         (fn [val]
+                                                           ((handle-midi-select :outputs :out) val)
+                                                           (when-let [o (get-in @app-state [:midi :out])]
+                                                             (.send o #js [0x90, 0x40, 0x7f])))]]])
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
                                      (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
@@ -119,4 +135,4 @@
 (r/render [root] (js/document.getElementById "app"))
 
 #_(defonce go
-         (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
+           (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
