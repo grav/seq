@@ -50,18 +50,27 @@
      (.start osc start)
      (.stop osc (+ start t)))))
 
+(defn ding
+  [f start t]
+  (when-let [out (get-in @app-state [:midi :out])]
+    (.send out #js [0x90, 0x41, 0x30] (* 1000 start))
+    (.send out #js [0x89, 0x41, 0x30] (* 1000 (+ start t)))))
+
 (defn play-sequence! [beat time sequence]
   (swap! app-state assoc :pointer (mod beat 16))
   (let [spt (secs-per-tick (:bpm @app-state))
-        now (.-currentTime context)
+        ;;now (.-currentTime context)
+        now (/ (.now (.-performance js/window)) 1000)
         new-notes (->> sequence
                        (map #(- % beat))
                        (map #(* spt %))
                        (map #(+ time %))
                        (take-while #(< % (+ now 0.75))))]
 
+
+
     (doseq [n new-notes]
-      (beep 400 n 0.05))
+      (ding 400 n 0.12))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (count new-notes))
 
@@ -121,10 +130,8 @@
                                                          (map hash outputs)
                                                          (map #(.-name %) outputs)
                                                          (hash out)
-                                                         (fn [val]
-                                                           ((handle-midi-select :outputs :out) val)
-                                                           (when-let [o (get-in @app-state [:midi :out])]
-                                                             (.send o #js [0x90, 0x40, 0x7f])))]]])
+
+                                                         (handle-midi-select :outputs :out)]]])
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
                                      (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
@@ -134,5 +141,5 @@
 
 (r/render [root] (js/document.getElementById "app"))
 
-#_(defonce go
+(defonce go
            (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
