@@ -1,5 +1,8 @@
 (ns ^:figwheel-always seq.core
-    (:require [reagent.core :as r]))
+  (:require [reagent.core :as r]
+            [goog.object :as g]
+            [seq.util :as u]
+            [seq.midi :as m]))
 
 (enable-console-print!)
 
@@ -80,15 +83,40 @@
 (defn header [{:keys [title]}]
   [:div title])
 
+(defn selector [opts]
+  [:select
+   (map (fn [k v] [:option {:key k
+                            :value k} v]) (range) opts)])
+
+(defn midi-selector [{:keys [inputs outputs]}]
+  [:div
+   [:div "Input: " [selector (map #(.-name %) inputs)]]
+   [:div "Output: " [selector (map #(.-name %) outputs)]]])
+
+(defn setup-midi! []
+  (let [save-devices! (fn [ma]
+            (swap! app-state merge {:midi {:inputs  (m/inputs ma)
+                                           :outputs (m/outputs ma)}}))]
+    (-> (js/navigator.requestMIDIAccess)
+       (.then (fn [ma]
+                (save-devices! ma)
+                ;; Update devices continously
+                (set! (.-onstatechange ma) #(save-devices! ma)))))))
+
 (defn root [_]
-  (let [{:keys [title sequence pointer]} @app-state]
-    [:div
-    [header {:title title}]
-    [:div {:style {:display "flex"}}
-     (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
-       (map (fn [s i] [:div {:key i} [step {:selected? s :playing? (= i pointer) }]]) bool-seq (range)))]]))
+  (r/create-class
+    {:reagent-render      (fn [] (let [{:keys [title sequence pointer midi]} @app-state]
+                                   [:div
+                                    (when midi
+                                      [midi-selector midi])
+                                    [header {:title title}]
+                                    [:div {:style {:display "flex"}}
+                                     (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
+                                       (map (fn [s i] [:div {:key i} [step {:selected? s :playing? (= i pointer)}]]) bool-seq (range)))]]))
+     :component-did-mount (fn [_]
+                            (setup-midi!))}))
 
 (r/render [root] (js/document.getElementById "app"))
 
-(comment
-  (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
+#_(defonce go
+         (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
