@@ -16,9 +16,11 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
 
-(defonce app-state (r/atom {:bpm 120
-                          :sequence [0x41 nil nil 0x41 nil nil 0x41 nil nil nil 0x41 nil 0x41 nil nil nil]
-                          :title "Hello"}))
+(defonce app-state (r/atom {:bpm      120
+                            :sequence [[0] [] [] [0] [] [] [0] [] [] [] [0] [] [0] [] [] []]
+                            :title    "Hello"}))
+
+(def cell-size 20)
 
 (defonce context (js/AudioContext.))
 
@@ -75,8 +77,9 @@
 
 
 
-    (doseq [[i v] new-notes]
-      (ding v i 0.12))
+    (doseq [[i vs] new-notes]
+      (doseq [v vs]
+        (ding (+ 0x41 v) i 0.12)))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (count new-notes))
           _ (prn "diff" diff)
@@ -85,11 +88,15 @@
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
 
-(defn step [{:keys [selected? playing? step-number]}]
-  [:div {:on-click #(swap! app-state assoc-in [:sequence step-number] (if selected? nil 0x41))
+(defn step [{:keys [selected? playing? step-number key]}]
+  [:div {:on-click (fn [_]
+                     (let [keys (->> (get-in @app-state [:sequence step-number])
+                                     (cons key)
+                                     (remove #(when selected? (= % key))))]
+                       (swap! app-state assoc-in [:sequence step-number] keys)))
          :style    {:background-color (if playing? "yellow" "black")
-                    :height           46
-                    :width            46
+                    :height           cell-size
+                    :width            cell-size
                     :padding          2}}
    [:div {:style {:background-color (if selected? "red" "white")
                   :height           "100%"
@@ -140,10 +147,17 @@
                                                          (handle-midi-select :outputs :out)]]])
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
-                                     (map (fn [[i v]] [:div {:key i} [step {:selected?   (not (nil? v))
-                                                                            :playing?    (= i pointer)
-                                                                            :step-number i}]]) (-> sequence
-                                                                                                   sequence->steps))]]))
+                                     (map (fn [[i vs]]
+                                            [:div
+                                             (->> (range 16)
+                                                  (map (fn [j] (contains? (set vs) j)))
+                                                  (map (fn [j v]
+                                                         [:div {:key j} [step {:selected?   v
+                                                                               :playing?    (= i pointer)
+                                                                               :step-number i
+                                                                               :key j}]])
+                                                       (range)))])
+                                          (-> sequence sequence->steps))]]))
      :component-did-mount (fn [_]
                             (setup-midi!))}))
 
