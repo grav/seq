@@ -99,8 +99,8 @@
 
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
-                        (swap! app-state merge {:midi {:inputs  (m/inputs ma)
-                                                       :outputs (m/outputs ma)}}))]
+                        (swap! app-state update-in [:midi] merge {:inputs  (m/inputs ma)
+                                                            :outputs (m/outputs ma)}))]
     (-> (js/navigator.requestMIDIAccess)
         (.then (fn [ma]
                  (save-devices! ma)
