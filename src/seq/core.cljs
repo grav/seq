@@ -148,7 +148,7 @@
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
                                      (map (fn [[i vs]]
-                                            [:div
+                                            [:div {:key i}
                                              (->> (range 16)
                                                   (map (fn [j] (contains? (set vs) j)))
                                                   (map (fn [j v]
