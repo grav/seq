@@ -17,7 +17,7 @@
 )
 
 (defonce app-state (r/atom {:bpm 120
-                          :sequence [0x90 nil nil 0x90 nil nil 0x90 nil nil nil 0x90 nil 0x90 nil nil nil]
+                          :sequence [0x41 nil nil 0x41 nil nil 0x41 nil nil nil 0x41 nil 0x41 nil nil nil]
                           :title "Hello"}))
 
 (defonce context (js/AudioContext.))
@@ -57,10 +57,10 @@
      (.stop osc (+ start t)))))
 
 (defn ding
-  [f start t]
+  [v start t]
   (when-let [out (get-in @app-state [:midi :out])]
-    (.send out #js [0x90, 0x41, 0x30] (* 1000 start))
-    (.send out #js [0x89, 0x41, 0x30] (* 1000 (+ start t)))))
+    (.send out #js [0x90, v, 0x30] (* 1000 start))
+    (.send out #js [0x89, v, 0x30] (* 1000 (+ start t)))))
 
 (defn play-sequence! [beat time sequence]
   (swap! app-state assoc :pointer (mod beat 16))
@@ -76,7 +76,7 @@
 
 
     (doseq [[i v] new-notes]
-      (ding 400 i 0.12))
+      (ding v i 0.12))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (count new-notes))
           _ (prn "diff" diff)
