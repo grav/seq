@@ -86,11 +86,11 @@
 
 
 (defn step [{:keys [selected? playing? step-number]}]
-  [:div {:on-click #(prn "clicked" step-number)
-         :style     {:background-color (if playing? "yellow" "black")
-                     :height           46
-                     :width            46
-                     :padding          2}}
+  [:div {:on-click #(swap! app-state assoc-in [:sequence step-number] (if selected? nil 0x41))
+         :style    {:background-color (if playing? "yellow" "black")
+                    :height           46
+                    :width            46
+                    :padding          2}}
    [:div {:style {:background-color (if selected? "red" "white")
                   :height           "100%"
                   :width            "100%"}}]])
@@ -140,10 +140,10 @@
                                                          (handle-midi-select :outputs :out)]]])
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
-                                     (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
-                                       (map (fn [s i] [:div {:key i} [step {:selected? s
-                                                                            :playing? (= i pointer)
-                                                                            :step-number i}]]) bool-seq (range)))]]))
+                                     (map (fn [[i v]] [:div {:key i} [step {:selected?   (not (nil? v))
+                                                                            :playing?    (= i pointer)
+                                                                            :step-number i}]]) (-> sequence
+                                                                                                   sequence->steps))]]))
      :component-did-mount (fn [_]
                             (setup-midi!))}))
 
