@@ -17,7 +17,7 @@
 )
 
 (defonce app-state (r/atom {:bpm 120
-                          :sequence [0 3 6 10 12]
+                          :sequence [0x90 nil nil 0x90 nil nil 0x90 nil nil nil 0x90 nil 0x90 nil nil nil]
                           :title "Hello"}))
 
 (defonce context (js/AudioContext.))
@@ -28,15 +28,21 @@
 
 (set! (.. gain -gain -value) 0.3)
 
+(defn sequence->steps [seq]
+  (map vector (range) seq) )
+
+(defn remove-empty-steps [seq]
+  (filter (fn [[_ v]] (not (nil? v))) seq))
+
 (defn secs-per-tick
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
 (defn inf-seq [f]
   (let [length 16
-        f' #(filter (partial > length) (f))]
-    (-> (map (fn [l i] (map #(+ % (* length i)) l)) (repeatedly f') (range))
-       (flatten))))
+        f' f #_ #(filter (partial > length) (f))]
+    (->> (map (fn [s it] (map (fn [[i v]] [(+ i (* length it)) v]) s)) (repeatedly f') (range))
+       (apply concat))))
 
 (defn beep
   ([f]
@@ -62,29 +68,29 @@
         ;;now (.-currentTime context)
         now (/ (.now (.-performance js/window)) 1000)
         new-notes (->> sequence
-                       (map #(- % beat))
-                       (map #(* spt %))
-                       (map #(+ time %))
-                       (take-while #(< % (+ now 0.75))))]
+                       (map (fn [[i v]] [(- i beat) v]))
+                       (map (fn [[i v]] [(* spt i) v]))
+                       (map (fn [[i v]] [(+ time i) v]))
+                       (take-while (fn [[i v]] (< i (+ now 0.75)))))]
 
 
 
-    (doseq [n new-notes]
-      (ding 400 n 0.12))
+    (doseq [[i v] new-notes]
+      (ding 400 i 0.12))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (count new-notes))
-
           _ (prn "diff" diff)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
       (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
 
 
-(defn step [{:keys [selected? playing?]}]
-  [:div {:style {:background-color (if playing? "yellow" "black")
-                 :height           46
-                 :width            46
-                 :padding          2}}
+(defn step [{:keys [selected? playing? step-number]}]
+  [:div {:on-click #(prn "clicked" step-number)
+         :style     {:background-color (if playing? "yellow" "black")
+                     :height           46
+                     :width            46
+                     :padding          2}}
    [:div {:style {:background-color (if selected? "red" "white")
                   :height           "100%"
                   :width            "100%"}}]])
@@ -135,11 +141,15 @@
                                     [header {:title title}]
                                     [:div {:style {:display "flex"}}
                                      (let [bool-seq (map #(contains? (set sequence) %) (range 16))]
-                                       (map (fn [s i] [:div {:key i} [step {:selected? s :playing? (= i pointer)}]]) bool-seq (range)))]]))
+                                       (map (fn [s i] [:div {:key i} [step {:selected? s
+                                                                            :playing? (= i pointer)
+                                                                            :step-number i}]]) bool-seq (range)))]]))
      :component-did-mount (fn [_]
                             (setup-midi!))}))
 
 (r/render [root] (js/document.getElementById "app"))
 
 (defonce go
-           (play-sequence! 0 0 (inf-seq #(:sequence @app-state))))
+         (play-sequence! 0 0 (->> (inf-seq (fn [] (->> (:sequence @app-state)
+                                                       (sequence->steps)
+                                                       (remove-empty-steps)))))))
