@@ -18,7 +18,8 @@
   )
 
 (defonce app-state (r/atom {:bpm      120
-                            :sequence [[0] [] [] [0] [] [] [0] [] [] [] [0] [] [0] [] [] []]
+                            :sequence nil
+                            :sequences {}
                             :title    "Hello"}))
 
 
@@ -30,8 +31,9 @@
 
 
 (defn ding
-  [v start t]
-  (when-let [out (get-in @app-state [:midi :out])]
+  [out-id v start t]
+  (when-let [out (-> (get-in @app-state [:midi :outputs])
+                     (m/get-output out-id))]
     (.send out #js [0x90, v, 0x30] (* 1000 start))
     (.send out #js [0x89, v, 0x30] (* 1000 (+ start t)))))
 
@@ -41,21 +43,28 @@
   (let [p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (->> (:sequence @app-state)
-                       (repeat)
-                       (apply concat)
-                       (map vector (range))
-                       (drop p)
-                       (map (fn [[i v]] [(- i p) v]))
-                       (map (fn [[i v]] [(* spt i) v]))
-                       (map (fn [[i v]] [(+ time i) v]))
-                       (take-while (fn [[i v]] (< i (+ now 0.75)))))]
-    (doseq [[i vs] new-notes]
-      (doseq [v vs]
-        (ding (+ 0x30 v) i 0.12)))
+        new-notes (for [[k s] (->> (get-in @app-state [:midi :outputs] )
+                               (map #(.-id %))
+                               (select-keys (get-in @app-state [:sequences])))]
+                    [k (->> s
+                            (repeat)
+                            (apply concat)
+                            (map vector (range))
+                            (drop p)
+                            (map (fn [[i v]] [(- i p) v]))
+                            (map (fn [[i v]] [(* spt i) v]))
+                            (map (fn [[i v]] [(+ time i) v]))
+                            (take-while (fn [[i v]] (< i (+ now 0.75)))))])]
+    (doseq [[k s] new-notes]
+      (doseq [[i vs] s]
+       (doseq [v vs]
+         (ding k (+ 0x24 v) i 0.12))))
+    (prn new-notes)
     (let [diff (- now time)
-          c (max (int (/ diff spt)) (count new-notes))
-          _ 42#_(prn "diff" diff)
+          c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
+                                          (apply max))
+                                        0))
+          _ (prn "diff" diff "c" c "new-notes" new-notes)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
       (js/setTimeout #(play-sequence! beat' time') 500))))
@@ -77,11 +86,13 @@
                         (first))]
       (swap! app-state assoc-in [:midi selection-key] selected))))
 
-(defn step-clicked [step-number key selected?]
-  (let [keys (->> (get-in @app-state [:sequence step-number])
+(defn step-clicked [output step-number key selected?]
+  (let [seq (or (get-in @app-state [:sequences output]) (vec (repeat 16 [])))
+        keys (->> (get seq step-number )
                   (cons key)
-                  (remove #(when selected? (= % key))))]
-    (swap! app-state assoc-in [:sequence step-number] keys)))
+                  (remove #(when selected? (= % key))))
+        new-seq (assoc seq step-number keys)]
+    (swap! app-state assoc-in [:sequences output] new-seq)))
 
 
 
