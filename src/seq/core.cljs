@@ -151,14 +151,14 @@
                                     [:div {:style {:display "flex"}}
                                      (map (fn [[i vs]]
                                             [:div {:key i}
-                                             (->> (range 16)
+                                             (->> (reverse (range 16))
                                                   (map (fn [j] (contains? (set vs) j)))
                                                   (map (fn [j v]
                                                          [:div {:key j} [step {:selected?   v
                                                                                :playing?    (= i pointer)
                                                                                :step-number i
-                                                                               :key j}]])
-                                                       (range)))])
+                                                                               :key         j}]])
+                                                       (reverse (range 16))))])
                                           (-> sequence sequence->steps))]]))
      :component-did-mount (fn [_]
                             (setup-midi!))}))
