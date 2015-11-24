@@ -33,9 +33,6 @@
 (defn sequence->steps [seq]
   (map vector (range) seq) )
 
-(defn remove-empty-steps [seq]
-  (filter (fn [[_ v]] (not (nil? v))) seq))
-
 (defn secs-per-tick
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
@@ -64,13 +61,18 @@
     (.send out #js [0x90, v, 0x30] (* 1000 start))
     (.send out #js [0x89, v, 0x30] (* 1000 (+ start t)))))
 
-(defn play-sequence! [beat time sequence]
+(defn play-sequence! [beat time]
   (swap! app-state assoc :pointer (mod beat 16))
-  (let [spt (secs-per-tick (:bpm @app-state))
+  (let [p (mod beat 16)
+        spt (secs-per-tick (:bpm @app-state))
         ;;now (.-currentTime context)
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (->> sequence
-                       (map (fn [[i v]] [(- i beat) v]))
+        new-notes (->> (:sequence @app-state)
+                       (repeat)
+                       (apply concat)
+                       (sequence->steps)
+                       (drop p)
+                       (map (fn [[i v]] [(- i p) v]))
                        (map (fn [[i v]] [(* spt i) v]))
                        (map (fn [[i v]] [(+ time i) v]))
                        (take-while (fn [[i v]] (< i (+ now 0.75)))))]
@@ -85,7 +87,7 @@
           _ (prn "diff" diff)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
+      (js/setTimeout #(play-sequence! beat' time') 500))))
 
 
 (defn step [{:keys [selected? playing? step-number key]}]
@@ -164,6 +166,4 @@
 (r/render [root] (js/document.getElementById "app"))
 
 (defonce go
-         (play-sequence! 0 0 (->> (inf-seq (fn [] (->> (:sequence @app-state)
-                                                       (sequence->steps)
-                                                       (remove-empty-steps)))))))
+         (play-sequence! 0 0 ))
