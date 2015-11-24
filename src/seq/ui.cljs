@@ -43,10 +43,12 @@
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state]
                                    [:div
-                                    (for [o (map #(.-id %) (:outputs midi))]
+                                    (for [o (:outputs midi)]
                                       [:div {:style {:margin 10}
-                                             :key   o}
-                                       [seq-view {:sequence     (get sequences o)
-                                                  :step-clicked (partial step-clicked o)}]])]))
+                                             :key   (.-id o)}
+                                       [:p (.-name o)]
+
+                                       [seq-view {:sequence     (get sequences (.-id o))
+                                                  :step-clicked (partial step-clicked (.-id o))}]])]))
      :component-did-mount (fn [_]
                             (did-mount))}))
