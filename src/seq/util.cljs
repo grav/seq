@@ -8,3 +8,4 @@
   (let [keys (js-iterable->vec (.keys m))]
     (->> (map (fn [k] [k (.get m k)]) keys)
         (into {}))))
+
