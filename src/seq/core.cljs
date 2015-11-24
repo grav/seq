@@ -81,7 +81,7 @@
 
     (doseq [[i vs] new-notes]
       (doseq [v vs]
-        (ding (+ 0x41 v) i 0.12)))
+        (ding (+ 0x30 v) i 0.12)))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (count new-notes))
           _ (prn "diff" diff)
