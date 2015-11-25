@@ -10,7 +10,7 @@
    (map (fn [k v]
           (prn "oval" k)
           [:option {:key   (or k "nil")
-                            :value k} v]) (cons nil keys) (cons "---" vals))])
+                    :value k} v]) (cons nil keys) (cons "---" vals))])
 
 
 (defn step [{:keys [selected? playing?]}]
@@ -39,16 +39,29 @@
                       (reverse (range 16))))])
          (->> (or sequence (repeat 16 [])) (map vector (range))))]])
 
-(defn create-root [app-state {:keys [did-mount step-clicked handle-select]}]
-  (r/create-class
-    {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state]
-                                   [:div {:style {:display "flex"}}
-                                    (for [o (:outputs midi)]
-                                      [:div {:style {:margin 10}
-                                             :key   (.-id o)}
-                                       [:p (.-name o)]
+(defn channel-changer [{:keys [channel handle-channel-change]}]
+  [:div {:style {:display "flex"}}
 
-                                       [seq-view {:sequence     (get-in sequences [(.-id o) :sequence])
-                                                  :step-clicked (partial step-clicked (.-id o))}]])]))
+   [:div (str "Channel: " channel)]
+   [:div {:on-click #(handle-channel-change (min 15 (inc channel)))} "▲"]
+   [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
+
+(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-channel-change]}]
+  (r/create-class
+    {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state
+                                       {:keys [outputs]} midi]
+                                   [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
+                                    [:div {:style {:display "flex"}}
+                                     (for [o (:outputs midi)]
+                                       (let [id (.-id o)
+                                             {:keys [sequence channel]} (get sequences id)]
+                                         [:div {:style {:margin 10}
+                                                :key   id}
+                                          [:p (.-name o)]
+
+                                          [seq-view {:sequence     sequence
+                                                     :step-clicked (partial step-clicked id)
+                                                     :channel      channel}]
+                                          [channel-changer {:channel (or channel 0) :handle-channel-change (partial handle-channel-change id)}]]))]]))
      :component-did-mount (fn [_]
                             (did-mount))}))

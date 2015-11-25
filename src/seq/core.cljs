@@ -35,10 +35,12 @@
   [out-id v start t]
   (when-let [out (-> (get-in @app-state [:midi :outputs])
                      (m/get-output out-id))]
-    (let [t1 (* 1000 start)
+    (let [channel (or (get-in @app-state [:sequences out-id :channel])
+                      0)
+          t1 (* 1000 start)
           t2 (* 1000 (+ start t))]
-      (.send out #js [144, v, 0x30] t1)
-      (.send out #js [128, v, 0x00] t2))))
+      (.send out #js [(+ channel 144), v, 0x30] t1)
+      (.send out #js [(+ channel 128), v, 0x00] t2))))
 
 
 (defn play-sequence! [beat time]
@@ -89,6 +91,9 @@
                         (first))]
       (swap! app-state assoc-in [:midi selection-key] selected))))
 
+(defn handle-channel-change [output channel]
+  (swap! app-state assoc-in [:sequences output :channel] channel))
+
 (defn step-clicked [output step-number key selected?]
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
@@ -103,7 +108,8 @@
 (r/render [(ui/create-root app-state
                            {:did-mount     setup-midi!
                             :step-clicked  step-clicked
-                            :handle-select handle-midi-select})] (js/document.getElementById "app"))
+                            :handle-select handle-midi-select
+                            :handle-channel-change handle-channel-change})] (js/document.getElementById "app"))
 
 (defonce go
          (play-sequence! 0 0))
