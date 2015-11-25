@@ -1,6 +1,9 @@
 (ns ^:figwheel-always seq.core
-  (:require [om.core :as om]
-            [om.dom :as dom]))
+  (:require [reagent.core :as r]
+            [goog.object :as g]
+            [seq.util :as u]
+            [seq.midi :as m]
+            [seq.ui :as ui]))
 
 (enable-console-print!)
 
@@ -14,81 +17,99 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
   )
 
-(defonce app-state (atom {:bpm      120
-                          :sequence [0 3 6 10 12]}))
+(defonce app-state (r/atom {:bpm      120
+                            :sequence nil
+                            :sequences {}
+                            :title    "Hello"}))
 
-(defonce context (js/AudioContext.))
 
-(defonce gain (.createGain context))
 
-(.connect gain (.-destination context))
-
-(set! (.. gain -gain -value) 0.3)
 
 (defn secs-per-tick
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
-(defn inf-seq [f]
-  (let [length 16
-        f' #(filter (partial > length) (f))]
-    (-> (map (fn [l i] (map #(+ % (* length i)) l)) (repeatedly f') (range))
-        (flatten))))
+(def all-notes-off [176 123 00])
 
-(defn beep
-  ([f]
-   (beep f 0.05))
-  ([f t]
-   (beep f (.-currentTime context) t))
-  ([f start t]
-   (let [osc (.createOscillator context)]
-     (.connect osc gain)
-     (set! (.. osc -frequency -value) f)
-     (.start osc start)
-     (.stop osc (+ start t)))))
+(defn ding
+  [out-id v start t]
+  (when-let [out (-> (get-in @app-state [:midi :outputs])
+                     (m/get-output out-id))]
+    (let [channel (or (get-in @app-state [:sequences out-id :channel])
+                      0)
+          t1 (* 1000 start)
+          t2 (* 1000 (+ start t))]
+      (.send out #js [(+ channel 144), v, 0x30] t1)
+      (.send out #js [(+ channel 128), v, 0x00] t2))))
 
-(defn play-sequence! [beat time sequence]
-  (let [spt (secs-per-tick (:bpm @app-state))
-        now (.-currentTime context)
-        new-notes (->> sequence
-                       (map #(- % beat))
-                       (map #(* spt %))
-                       (map #(+ time %))
-                       (take-while #(< % (+ now 0.75))))]
 
-    (doseq [n new-notes]
-      (beep 400 n 0.05))
+(defn play-sequence! [beat time]
+  #_(swap! app-state assoc :pointer (mod beat 16))
+  (let [p (mod beat 16)
+        spt (secs-per-tick (:bpm @app-state))
+        now (/ (.now (.-performance js/window)) 1000)
+        new-notes (for [[k s] (->> (get-in @app-state [:midi :outputs])
+                                   (map #(.-id %))
+                                   (select-keys (get-in @app-state [:sequences])))]
+                    [k (->> (:sequence s)
+                            (repeat)
+                            (apply concat)
+                            (map vector (range))
+                            (drop p)
+                            (map (fn [[i v]] [(- i p) v]))
+                            (map (fn [[i v]] [(* spt i) v]))
+                            (map (fn [[i v]] [(+ time i) v]))
+                            (take-while (fn [[i v]] (< i (+ now 0.75)))))])]
+    (doseq [[k s] new-notes]
+      (doseq [[i vs] s]
+       (doseq [v vs]
+         (ding k (+ 0x24 v) i 0.12))))
+    (prn new-notes)
     (let [diff (- now time)
-          c (max (int (/ diff spt)) (count new-notes))
-
-          _ (prn "diff" diff)
+          c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
+                                          (apply max))
+                                        0))
+          _ (prn "diff" diff "c" c "new-notes" new-notes)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(play-sequence! beat' time' (drop (count new-notes) sequence)) 500))))
+      (js/setTimeout #(play-sequence! beat' time') 500))))
 
-(defn widget [{:keys [sequence foo]} owner]
-  (reify
-    om/IRender
-    (render [this]
-      (prn "render")
-      (let [anim-name (str "blink" (mod (:anim-id (om/get-state owner)) 2))]
-        (dom/div nil
-                 (dom/div (clj->js {:style {:animationName           anim-name
-                                            :animationDuration       "1s"
-                                            :animationIterationCount 1}})
-                          "Sequence:"
-                          (apply dom/div nil sequence))
-                 (dom/div nil
-                          "Foo: "
-                          (str foo)))))
+(defn setup-midi! []
+  (let [save-devices! (fn [ma]
+                        (swap! app-state update-in [:midi] merge {:inputs  (m/inputs ma)
+                                                                  :outputs (m/outputs ma)}))]
+    (-> (js/navigator.requestMIDIAccess)
+        (.then (fn [ma]
+                 (save-devices! ma)
+                 ;; Update devices continously
+                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
 
-    om/IWillReceiveProps
-    (will-receive-props [this next-props]
-      (prn "will-update")
-      (when (not= sequence (:sequence next-props))
-        (let [anim-id (inc (:anim-id (om/get-state owner)))]
-          (om/set-state! owner {:anim-id anim-id}))))))
+(defn handle-midi-select [state-key selection-key]
+  (fn [val]
+    (let [selected (->> (get-in @app-state [:midi state-key])
+                        (filter #(= (.-id %) val))
+                        (first))]
+      (swap! app-state assoc-in [:midi selection-key] selected))))
+
+(defn handle-channel-change [output channel]
+  (swap! app-state assoc-in [:sequences output :channel] channel))
+
+(defn step-clicked [output step-number key selected?]
+  (let [seq (or (get-in @app-state [:sequences output :sequence])
+                (vec (repeat 16 [])))
+        keys (->> (get seq step-number)
+                  (cons key)
+                  (remove #(when selected? (= % key))))
+        new-seq (assoc seq step-number keys)]
+    (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
 
-(om/root widget app-state
-         {:target (. js/document (getElementById "app"))})
+
+(r/render [(ui/create-root app-state
+                           {:did-mount     setup-midi!
+                            :step-clicked  step-clicked
+                            :handle-select handle-midi-select
+                            :handle-channel-change handle-channel-change})] (js/document.getElementById "app"))
+
+(defonce go
+         (play-sequence! 0 0))
