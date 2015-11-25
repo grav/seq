@@ -48,7 +48,7 @@
                                              :key   (.-id o)}
                                        [:p (.-name o)]
 
-                                       [seq-view {:sequence     (get sequences (.-id o))
+                                       [seq-view {:sequence     (get-in sequences [(.-id o) :sequence])
                                                   :step-clicked (partial step-clicked (.-id o))}]])]))
      :component-did-mount (fn [_]
                             (did-mount))}))
