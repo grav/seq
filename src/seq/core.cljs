@@ -29,13 +29,16 @@
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
+(def all-notes-off [176 123 00])
 
 (defn ding
   [out-id v start t]
   (when-let [out (-> (get-in @app-state [:midi :outputs])
                      (m/get-output out-id))]
-    (.send out #js [0x90, v, 0x30] (* 1000 start))
-    (.send out #js [0x89, v, 0x30] (* 1000 (+ start t)))))
+    (let [t1 (* 1000 start)
+          t2 (* 1000 (+ start t))]
+      (.send out #js [144, v, 0x30] t1)
+      (.send out #js [128, v, 0x00] t2))))
 
 
 (defn play-sequence! [beat time]
@@ -43,10 +46,10 @@
   (let [p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (for [[k s] (->> (get-in @app-state [:midi :outputs] )
-                               (map #(.-id %))
-                               (select-keys (get-in @app-state [:sequences])))]
-                    [k (->> s
+        new-notes (for [[k s] (->> (get-in @app-state [:midi :outputs])
+                                   (map #(.-id %))
+                                   (select-keys (get-in @app-state [:sequences])))]
+                    [k (->> (:sequence s)
                             (repeat)
                             (apply concat)
                             (map vector (range))
@@ -87,12 +90,13 @@
       (swap! app-state assoc-in [:midi selection-key] selected))))
 
 (defn step-clicked [output step-number key selected?]
-  (let [seq (or (get-in @app-state [:sequences output]) (vec (repeat 16 [])))
-        keys (->> (get seq step-number )
+  (let [seq (or (get-in @app-state [:sequences output :sequence])
+                (vec (repeat 16 [])))
+        keys (->> (get seq step-number)
                   (cons key)
                   (remove #(when selected? (= % key))))
         new-seq (assoc seq step-number keys)]
-    (swap! app-state assoc-in [:sequences output] new-seq)))
+    (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
 
 
