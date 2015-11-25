@@ -1,39 +1,38 @@
 # seq
 
-FIXME: Write a one-line description of your library/project.
+A Midi step sequencer that runs in the browser.
 
 ## Overview
 
-FIXME: Write a paragraph about the library/project and highlight its goals.
+Seq is a Midi step sequencer that runs in the browser. It uses the Web MIDI API for communicating with devices (Web MIDI is currently only supported in [Chrome](http://caniuse.com/#feat=midi)).
+
+Seq creates a step sequencer for each output device that it finds. You can configure the output channel for each device, but that's it! 
+
+The plans for the future include:
+
+- De-activating MIDI outputs 
+- Saving the port and inactive devices between sessions
+- Creating several parallel step sequencers for each device (with different ports)
+- Saving the sequences(!)
+- Showing the playhead
 
 ## Setup
 
-To get an interactive development environment run:
+To get going, run
 
     lein figwheel
 
 and open your browser at [localhost:3449](http://localhost:3449/).
-This will auto compile and send all changes to the browser without the
-need to reload. After the compilation process is complete, you will
-get a Browser Connected REPL. An easy way to try it is:
+You should then see a step sequencer for each connected device. If you dis- or re-connect devices, the UI will reflect this.
 
-    (js/alert "Am I connected?")
+## Tech stuff
 
-and you should see an alert in the browser window.
+Seq is implemented in ClojureScript and uses the React-wrapper, Reagent for the UI. 
 
-To clean all compiled files:
-
-    lein clean
-
-To create a production build run:
-
-    lein cljsbuild once min
-
-And open your browser in `resources/public/index.html`. You will not
-get live reloading, nor a REPL. 
+For timing, it uses the techniques from Chris Wilson's blog post [A Tale of Two Clocks](http://www.html5rocks.com/en/tutorials/audio/scheduling/) with a more "functional" approach.
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2015 Betafunk
 
-Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.
+Distributed under the MIT License
