@@ -42,7 +42,7 @@
 (defn create-root [app-state {:keys [did-mount step-clicked handle-select]}]
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state]
-                                   [:div
+                                   [:div {:style {:display "flex"}}
                                     (for [o (:outputs midi)]
                                       [:div {:style {:margin 10}
                                              :key   (.-id o)}
