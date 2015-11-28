@@ -23,6 +23,7 @@
                             :title    "Hello"}))
 
 
+(def latency 0.5)
 
 
 (defn secs-per-tick
@@ -60,7 +61,7 @@
                             (map (fn [[i v]] [(- i p) v]))
                             (map (fn [[i v]] [(* spt i) v]))
                             (map (fn [[i v]] [(+ time i) v]))
-                            (take-while (fn [[i v]] (< i (+ now 0.75)))))])]
+                            (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
     (doseq [[k s] new-notes]
       (doseq [[i vs] s]
        (doseq [v vs]
@@ -73,7 +74,7 @@
           _ (prn "diff" diff "c" c "new-notes" new-notes)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(play-sequence! beat' time') 500))))
+      (js/setTimeout #(play-sequence! beat' time') (* latency 1000)))))
 
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
