@@ -48,10 +48,11 @@
   (let [p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (for [[k s] (->> (get-in @app-state [:midi :outputs])
+        new-notes (for [[k {:keys [sequence]}] (->> (get-in @app-state [:midi :outputs])
                                    (map #(.-id %))
-                                   (select-keys (get-in @app-state [:sequences])))]
-                    [k (->> (:sequence s)
+                                   (select-keys (get-in @app-state [:sequences])))
+                        :when sequence]
+                    [k (->> sequence
                             (repeat)
                             (apply concat)
                             (map vector (range))
