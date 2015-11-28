@@ -4,9 +4,13 @@ A Midi step sequencer that runs in the browser.
 
 ## Overview
 
+![Screenshot of Seq](http://i.imgur.com/bs3DtHL.png)
+
 Seq is a Midi step sequencer that runs in the browser. It uses the Web MIDI API for communicating with devices (Web MIDI is currently only supported in [Chrome](http://caniuse.com/#feat=midi)).
 
 Seq creates a step sequencer for each output device that it finds. You can configure the output channel for each device, but that's it! 
+
+Check out the [video at Vimeo](https://vimeo.com/146959755)
 
 The plans for the future include:
 
