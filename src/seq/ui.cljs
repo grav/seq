@@ -22,12 +22,13 @@
                   :height           "100%"
                   :width            "100%"}}]])
 
-(defn seq-view [{:keys [sequence step-clicked]}]
+
+(defn seq-view [{:keys [sequence step-clicked offset]}]
   [:div
    [:div {:style {:display "flex"}}
     (map (fn [[i vs]]
            [:div {:key i}
-            (->> (reverse (range 16))
+            (->> (reverse (take 16 (drop offset (range))))
                  (map (fn [j] (contains? (set vs) j)))
                  (map (fn [j v]
                         [:div {:key      j
@@ -36,8 +37,15 @@
                                 :playing?    false #_(= i pointer)
                                 :step-number i
                                 :key         j}]])
-                      (reverse (range 16))))])
+                      (reverse (take 16 (drop offset (range))))))])
          (->> (or sequence (repeat 16 [])) (map vector (range))))]])
+
+(defn up-down [{:keys [text val handle-val-change min-val max-val]}]
+  [:div {:style {:display "flex"}}
+
+   [:div (str text ": " val)]
+   [:button {:on-click #(handle-val-change (min max-val (inc val)))} "▲"]
+   [:button {:on-click #(handle-val-change (max min-val (dec val)))} "▼"]])
 
 (defn channel-changer [{:keys [channel handle-channel-change]}]
   [:div {:style {:display "flex"}}
@@ -46,7 +54,7 @@
    [:div {:on-click #(handle-channel-change (min 15 (inc channel)))} "▲"]
    [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
 
-(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-channel-change]}]
+(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-val-change]}]
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state
                                        {:keys [outputs]} midi]
@@ -54,14 +62,27 @@
                                     [:div {:style {:display "flex"}}
                                      (for [o (:outputs midi)]
                                        (let [id (.-id o)
-                                             {:keys [sequence channel]} (get sequences id)]
+                                             {:keys [sequence channel offset transpose]
+                                              :or   {channel 0
+                                                     offset  0
+                                                     transpose 0}} (get sequences id)]
                                          [:div {:style {:margin 10}
                                                 :key   id}
                                           [:p (.-name o)]
 
                                           [seq-view {:sequence     sequence
                                                      :step-clicked (partial step-clicked id)
-                                                     :channel      channel}]
-                                          [channel-changer {:channel (or channel 0) :handle-channel-change (partial handle-channel-change id)}]]))]]))
+                                                     :channel      channel
+                                                     :offset       offset}]
+                                          [:div (map (fn [[key val min max]]
+                                                       [:div {:key key}
+                                                        [up-down {:text              (name key)
+                                                                  :val               val
+                                                                  :handle-val-change (partial handle-val-change key id)
+                                                                  :min-val           min
+                                                                  :max-val           max}]])
+                                                     [[:channel channel 0 15]
+                                                      [:offset offset 0 40]
+                                                      [:transpose transpose -24 24]])]]))]]))
      :component-did-mount (fn [_]
                             (did-mount))}))
