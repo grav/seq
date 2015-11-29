@@ -105,13 +105,23 @@
         new-seq (assoc seq step-number keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
+(defn nudge [id v]
+  (when-let [seq (get-in @app-state [:sequences id :sequence])]
+    (swap! app-state assoc-in [:sequences id :sequence] (->> seq
+                                                             (repeat)
+                                                             (apply concat)
+                                                             (drop (- 16 v))
+                                                             (take 16)
+                                                             vec))))
+
 
 
 (r/render [(ui/create-root app-state
-                           {:did-mount     setup-midi!
-                            :step-clicked  step-clicked
-                            :handle-select handle-midi-select
-                            :handle-val-change handle-val-change})] (js/document.getElementById "app"))
+                           {:did-mount         setup-midi!
+                            :step-clicked      step-clicked
+                            :handle-select     handle-midi-select
+                            :handle-val-change handle-val-change
+                            :nudge             nudge})] (js/document.getElementById "app"))
 
 (defonce go
          (play-sequence! 0 0))

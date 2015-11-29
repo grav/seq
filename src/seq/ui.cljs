@@ -54,7 +54,7 @@
    [:div {:on-click #(handle-channel-change (min 15 (inc channel)))} "▲"]
    [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
 
-(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-val-change]}]
+(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state
                                        {:keys [outputs]} midi]
@@ -83,6 +83,9 @@
                                                                   :max-val           max}]])
                                                      [[:channel channel 0 15]
                                                       [:offset offset 0 40]
-                                                      [:transpose transpose -24 24]])]]))]]))
+                                                      [:transpose transpose -24 24]])
+                                           [:div "Nudge"
+                                            [:button {:on-click (partial nudge id -1)} "←"]
+                                            [:button {:on-click (partial nudge id 1)} "→"]]]]))]]))
      :component-did-mount (fn [_]
                             (did-mount))}))
