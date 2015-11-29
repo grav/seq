@@ -74,7 +74,7 @@
           _ (prn "diff" diff "c" c "new-notes" new-notes)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(play-sequence! beat' time') (* latency 1000)))))
+      (js/setTimeout #(seq.core/play-sequence! beat' time') (* latency 1000)))))
 
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
