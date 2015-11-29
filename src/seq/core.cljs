@@ -17,13 +17,13 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
   )
 
-(defonce app-state (r/atom {:bpm      120
-                            :sequence nil
+(defonce app-state (r/atom {:bpm       120
+                            :sequence  nil
                             :sequences {}
-                            :title    "Hello"}))
+                            :title     "Hello"}))
 
 
-(def latency 0.5)
+(def latency 0.1)
 
 
 (defn secs-per-tick
@@ -37,7 +37,7 @@
   (when-let [out (-> (get-in @app-state [:midi :outputs])
                      (m/get-output out-id))]
     (let [{:keys [channel transpose]
-           :or {channel 0 transpose 0}} (get-in @app-state [:sequences out-id])
+           :or   {channel 0 transpose 0}} (get-in @app-state [:sequences out-id])
           t1 (* 1000 start)
           t2 (* 1000 (+ start t))]
       (.send out #js [(+ channel 144), (+ v transpose), 0x30] t1)
@@ -50,8 +50,8 @@
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
         new-notes (for [[k {:keys [sequence]}] (->> (get-in @app-state [:midi :outputs])
-                                   (map #(.-id %))
-                                   (select-keys (get-in @app-state [:sequences])))
+                                                    (map #(.-id %))
+                                                    (select-keys (get-in @app-state [:sequences])))
                         :when sequence]
                     [k (->> sequence
                             (repeat)
@@ -64,14 +64,12 @@
                             (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
     (doseq [[k s] new-notes]
       (doseq [[i vs] s]
-       (doseq [v vs]
-         (ding k (+ 0x24 v) i 0.12))))
-    (prn new-notes)
+        (doseq [v vs]
+          (ding k (+ 0x24 v) i 0.12))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
-                                          (apply max))
+                                             (apply max))
                                         0))
-          _ (prn "diff" diff "c" c "new-notes" new-notes)
           beat' (+ c beat)
           time' (+ (* spt c) time)]
       (js/setTimeout #(seq.core/play-sequence! beat' time') (* latency 1000)))))
