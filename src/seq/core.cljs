@@ -112,6 +112,15 @@
                                                              (take 16)
                                                              vec))))
 
+(defn save! [name]
+  (->>
+    (with-out-str (prn (:sequences @app-state)))
+    (aset js/localStorage name)))
+
+(defn restore! [name]
+  (->> (aget js/localStorage name)
+       (cljs.reader/read-string)
+       (swap! app-state assoc :sequences)))
 
 
 (r/render [(ui/create-root app-state
