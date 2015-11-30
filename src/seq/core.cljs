@@ -91,7 +91,7 @@
                         (first))]
       (swap! app-state assoc-in [:midi selection-key] selected))))
 
-(defn handle-val-change [key output val]
+(defn handle-val-change [output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
 (defn step-clicked [output step-number key selected?]

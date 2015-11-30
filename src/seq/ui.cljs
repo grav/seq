@@ -54,6 +54,32 @@
    [:div {:on-click #(handle-channel-change (min 15 (inc channel)))} "▲"]
    [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
 
+(defn output-view [{:keys [sequence channel offset transpose]
+                       :or   {channel   0
+                              offset    0
+                              transpose 0}}
+                   [step-clicked
+                    handle-val-change
+                    nudge]]
+  [:div
+   [seq-view {:sequence     sequence
+              :step-clicked step-clicked
+              :channel      channel
+              :offset       offset}]
+   [:div (map (fn [[key val min max]]
+                [:div {:key key}
+                 [up-down {:text              (name key)
+                           :val               val
+                           :handle-val-change (partial handle-val-change key)
+                           :min-val           min
+                           :max-val           max}]])
+              [[:channel channel 0 15]
+               [:offset offset 0 40]
+               [:transpose transpose -24 24]])
+    [:div "Nudge"
+     [:button {:on-click #(nudge -1)} "←"]
+     [:button {:on-click #(nudge 1)} "→"]]]])
+
 (defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state
@@ -62,30 +88,11 @@
                                     [:div {:style {:display "flex"}}
                                      (for [o (:outputs midi)]
                                        (let [id (.-id o)
-                                             {:keys [sequence channel offset transpose]
-                                              :or   {channel 0
-                                                     offset  0
-                                                     transpose 0}} (get sequences id)]
+                                             sequence (get sequences id)]
                                          [:div {:style {:margin 10}
                                                 :key   id}
                                           [:p (.-name o)]
-
-                                          [seq-view {:sequence     sequence
-                                                     :step-clicked (partial step-clicked id)
-                                                     :channel      channel
-                                                     :offset       offset}]
-                                          [:div (map (fn [[key val min max]]
-                                                       [:div {:key key}
-                                                        [up-down {:text              (name key)
-                                                                  :val               val
-                                                                  :handle-val-change (partial handle-val-change key id)
-                                                                  :min-val           min
-                                                                  :max-val           max}]])
-                                                     [[:channel channel 0 15]
-                                                      [:offset offset 0 40]
-                                                      [:transpose transpose -24 24]])
-                                           [:div "Nudge"
-                                            [:button {:on-click (partial nudge id -1)} "←"]
-                                            [:button {:on-click (partial nudge id 1)} "→"]]]]))]]))
+                                          [output-view sequence
+                                           (map #(partial % id) [step-clicked handle-val-change nudge])]]))]]))
      :component-did-mount (fn [_]
                             (did-mount))}))
