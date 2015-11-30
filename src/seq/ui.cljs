@@ -55,9 +55,9 @@
    [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
 
 (defn output-view [{:keys [sequence channel offset transpose]
-                       :or   {channel   0
-                              offset    0
-                              transpose 0}}
+                    :or   {channel   0
+                           offset    0
+                           transpose 0}}
                    [step-clicked
                     handle-val-change
                     nudge]]
@@ -80,19 +80,42 @@
      [:button {:on-click #(nudge -1)} "←"]
      [:button {:on-click #(nudge 1)} "→"]]]])
 
-(defn create-root [app-state {:keys [did-mount step-clicked handle-select handle-val-change nudge]}]
+(defn refresh-sessions! [state]
+  (swap! state assoc :sessions (-> js/localStorage
+                                   (seq.util/js-maplike->map)
+                                   keys)))
+
+(defn session-view []
+  (let [state (r/atom {})] (r/create-class
+                             {:reagent-render      (fn [{:keys [handle-select handle-save]}]
+                                                     (let [{:keys [sessions name]} @state]
+                                                       [:div [:h3 "Saved sessions"]
+                                                        [:ul (map (fn [n] [:li {:key n}
+                                                                           [:a {:href     "#"
+                                                                                :on-click #(handle-select n)} n]]) sessions)]
+                                                        [:div "Save: "
+                                                         [:input {:value     name
+                                                                  :on-change #(swap! state assoc :name (.-target.value %))}]
+                                                         [:button {:on-click (fn [_]
+                                                                               (handle-save name)
+                                                                               (refresh-sessions! state))} "Save"]]]))
+                              :component-did-mount (refresh-sessions! state)})))
+
+(defn root-view []
   (r/create-class
-    {:reagent-render      (fn [] (let [{:keys [sequences pointer midi]} @app-state
-                                       {:keys [outputs]} midi]
-                                   [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
-                                    [:div {:style {:display "flex"}}
-                                     (for [o (:outputs midi)]
-                                       (let [id (.-id o)
-                                             sequence (get sequences id)]
-                                         [:div {:style {:margin 10}
-                                                :key   id}
-                                          [:p (.-name o)]
-                                          [output-view sequence
-                                           (map #(partial % id) [step-clicked handle-val-change nudge])]]))]]))
-     :component-did-mount (fn [_]
-                            (did-mount))}))
+    {:reagent-render      (fn [app-state {:keys [step-clicked handle-val-change nudge]}]
+                            (let [{:keys [sequences midi]} @app-state
+                                  {:keys [outputs]} midi]
+                              [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
+                               [:div {:style {:display "flex"}}
+                                (for [o (:outputs midi)]
+                                  (let [id (.-id o)
+                                        sequence (get sequences id)]
+                                    [:div {:style {:margin 10}
+                                           :key   id}
+                                     [:p (.-name o)]
+                                     [output-view sequence
+                                      (map #(partial % id) [step-clicked handle-val-change nudge])]]))]]))
+     :component-did-mount (fn [this]
+                            (let [[_ _ {:keys [did-mount]}] (r/argv this)]
+                              (did-mount)))}))

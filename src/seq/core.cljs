@@ -122,13 +122,14 @@
        (cljs.reader/read-string)
        (swap! app-state assoc :sequences)))
 
-
-(r/render [(ui/create-root app-state
-                           {:did-mount         setup-midi!
-                            :step-clicked      step-clicked
-                            :handle-select     handle-midi-select
-                            :handle-val-change handle-val-change
-                            :nudge             nudge})] (js/document.getElementById "app"))
+(r/render [:div
+           [ui/root-view app-state {:did-mount         setup-midi!
+                                    :step-clicked      step-clicked
+                                    :handle-select     handle-midi-select
+                                    :handle-val-change handle-val-change
+                                    :nudge             nudge}]
+           [ui/session-view {:handle-select #(restore! %)
+                          :handle-save      #(save! %)}]] (js/document.getElementById "app"))
 
 (defonce go
          (play-sequence! 0 0))
