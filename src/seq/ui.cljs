@@ -5,7 +5,6 @@
 
 
 (defn selector [keys vals current on-change]
-  (prn "current" current)
   [:select {:value current :on-change #(on-change (.-value (.-target %)))}
    (map (fn [k v]
           (prn "oval" k)
@@ -46,13 +45,6 @@
    [:div (str text ": " val)]
    [:button {:on-click #(handle-val-change (min max-val (inc val)))} "▲"]
    [:button {:on-click #(handle-val-change (max min-val (dec val)))} "▼"]])
-
-(defn channel-changer [{:keys [channel handle-channel-change]}]
-  [:div {:style {:display "flex"}}
-
-   [:div (str "Channel: " channel)]
-   [:div {:on-click #(handle-channel-change (min 15 (inc channel)))} "▲"]
-   [:div {:on-click #(handle-channel-change (max 0 (dec channel)))} "▼"]])
 
 (defn output-view [{:keys [sequence channel offset transpose]
                     :or   {channel   0
