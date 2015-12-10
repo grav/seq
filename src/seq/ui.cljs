@@ -93,6 +93,18 @@
                                                                                (refresh-sessions! state))} "Save"]]]))
                               :component-did-mount (refresh-sessions! state)})))
 
+(defn decay-view [app-state handle-change]
+  (let [sustain (:sustain @app-state)]
+    [:div
+     "Sustain"
+     [:input {:type      "range"
+              :min       0
+              :max       0.5
+              :value     sustain
+              :step      0.01
+              :on-change #(handle-change (js/parseFloat (.-target.value %)))}]
+     (str sustain " s")]))
+
 (defn root-view []
   (r/create-class
     {:reagent-render      (fn [app-state {:keys [step-clicked handle-val-change nudge]}]

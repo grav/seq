@@ -18,6 +18,7 @@
   )
 
 (defonce app-state (r/atom {:bpm       120
+                            :sustain 0.12
                             :sequences {}}))
 
 (def latency 0.1)
@@ -61,7 +62,7 @@
     (doseq [[k s] new-notes]
       (doseq [[i vs] s]
         (doseq [v vs]
-          (ding k (+ 0x24 v) i 0.12))))
+          (ding k (+ 0x24 v) i (:sustain @app-state)))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
                                              (apply max))
@@ -124,6 +125,7 @@
                                     :handle-select     handle-midi-select
                                     :handle-val-change handle-val-change
                                     :nudge             nudge}]
+           [ui/decay-view app-state #(swap! app-state assoc :sustain %)]
            [ui/session-view {:handle-select restore!
                              :handle-save   save!}]] (js/document.getElementById "app"))
 
