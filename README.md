@@ -17,8 +17,8 @@ The plans for the future include:
 - De-activating MIDI outputs 
 - Saving the port and inactive devices between sessions
 - Creating several parallel step sequencers for each device (with different ports)
-- Saving the sequences(!)
-- Showing the playhead
+- ~~Saving the sequences(!)~~
+- ~~Showing the playhead~~
 
 ## Setup
 
