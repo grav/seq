@@ -59,6 +59,7 @@
                             (map (fn [[i v]] [(* spt i) v]))
                             (map (fn [[i v]] [(+ time i) v]))
                             (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
+    (swap! app-state assoc :position p)
     (doseq [[k s] new-notes]
       (doseq [[i vs] s]
         (doseq [v vs]

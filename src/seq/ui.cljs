@@ -13,7 +13,7 @@
 
 
 (defn step [{:keys [selected? playing?]}]
-  [:div {:style {:background-color (if playing? "yellow" "black")
+  [:div {:style {:background-color (when playing? "yellow" )
                  :height           cell-size
                  :width            cell-size
                  :padding          (min 3 (max 1 (/ cell-size 10)))}}
@@ -22,7 +22,10 @@
                   :width            "100%"}}]])
 
 
-(defn seq-view [{:keys [sequence step-clicked offset]}]
+(defn black-key? [j]
+  (contains? #{1 3 6 8 10} (mod j 12)))
+
+(defn seq-view [{:keys [sequence step-clicked offset position]}]
   [:div
    [:div {:style {:display "flex"}}
     (map (fn [[i vs]]
@@ -31,9 +34,12 @@
                  (map (fn [j] (contains? (set vs) j)))
                  (map (fn [j v]
                         [:div {:key      j
-                               :on-click #(step-clicked i j v)}
+                               :on-click #(step-clicked i j v)
+                               :style    {:background-color (if (black-key? j)
+                                                              "#777"
+                                                              :black)}}
                          [step {:selected?   v
-                                :playing?    false #_(= i pointer)
+                                :playing?    (= i position)
                                 :step-number i
                                 :key         j}]])
                       (reverse (take 16 (drop offset (range))))))])
@@ -50,6 +56,7 @@
                     :or   {channel   0
                            offset    0
                            transpose 0}}
+                   position
                    [step-clicked
                     handle-val-change
                     nudge]]
@@ -57,7 +64,8 @@
    [seq-view {:sequence     sequence
               :step-clicked step-clicked
               :channel      channel
-              :offset       offset}]
+              :offset       offset
+              :position     position}]
    [:div (map (fn [[key val min max]]
                 [:div {:key key}
                  [up-down {:text              (name key)
@@ -108,7 +116,7 @@
 (defn root-view []
   (r/create-class
     {:reagent-render      (fn [app-state {:keys [step-clicked handle-val-change nudge]}]
-                            (let [{:keys [sequences midi]} @app-state
+                            (let [{:keys [sequences midi position]} @app-state
                                   {:keys [outputs]} midi]
                               [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
                                [:div {:style {:display "flex"}}
@@ -119,6 +127,7 @@
                                            :key   id}
                                      [:p (.-name o)]
                                      [output-view sequence
+                                      position
                                       (map #(partial % id) [step-clicked handle-val-change nudge])]]))]]))
      :component-did-mount (fn [this]
                             (let [[_ _ {:keys [did-mount]}] (r/argv this)]
