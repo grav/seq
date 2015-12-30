@@ -20,7 +20,8 @@
     :builds [{:id "dev"
               :source-paths ["src"]
 
-              :figwheel { :on-jsload "seq.core/on-js-reload" }
+              :figwheel {:on-jsload "seq.core/on-js-reload"
+                         :websocket-host :js-client-host}
 
               :compiler {:main seq.core
                          :asset-path "js/compiled/out"
