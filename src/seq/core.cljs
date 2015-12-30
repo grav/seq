@@ -3,7 +3,8 @@
             [goog.object :as g]
             [seq.util :as u]
             [seq.midi :as m]
-            [seq.ui :as ui]))
+            [seq.ui :as ui]
+            [seq.launchpad :as lp]))
 
 (enable-console-print!)
 
@@ -43,7 +44,9 @@
 
 (defn play-sequence! [beat time]
   #_(swap! app-state assoc :pointer (mod beat 16))
-  (let [p (mod beat 16)
+  (let [lp (first (->> (get-in @app-state [:midi :outputs])
+                       (filter lp/is-launchpad?)))
+        p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
         new-notes (for [[k {:keys [sequence]}] (->> (get-in @app-state [:midi :outputs])
@@ -60,6 +63,7 @@
                             (map (fn [[i v]] [(+ time i) v]))
                             (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
     (swap! app-state assoc :position p)
+    (ding (.-id lp) p now 0.15)
     (doseq [[k s] new-notes]
       (doseq [[i vs] s]
         (doseq [v vs]

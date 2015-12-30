@@ -1,5 +1,6 @@
 (ns seq.ui
-  (:require [reagent.core :as r]))
+  (:require [reagent.core :as r]
+            [seq.launchpad :as lp]))
 
 (def cell-size 10)
 
@@ -114,6 +115,12 @@
               :on-change #(handle-change (js/parseFloat (.-target.value %)))}]
      (str sustain " s")]))
 
+(defn controller-view [controllers]
+  [:div
+   [:h3 "Connected controllers"]
+   (for [c controllers]
+     [:div  (.-name c)])])
+
 (defn root-view []
   (r/create-class
     {:reagent-render      (fn [app-state {:keys [step-clicked handle-val-change nudge]}]
@@ -121,7 +128,8 @@
                                   {:keys [outputs]} midi]
                               [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
                                [:div {:style {:display "flex"}}
-                                (for [o (:outputs midi)]
+                                (for [o (->> (:outputs midi)
+                                             (remove lp/is-launchpad?))]
                                   (let [id (.-id o)
                                         sequence (get sequences id)]
                                     [:div {:style {:margin 10}
@@ -129,7 +137,8 @@
                                      [:p (.-name o)]
                                      [output-view sequence
                                       position
-                                      (map #(partial % id) [step-clicked handle-val-change nudge])]]))]]))
+                                      (map #(partial % id) [step-clicked handle-val-change nudge])]]))]
+                               [controller-view (filter lp/is-launchpad? outputs)]]))
      :component-did-mount (fn [this]
                             (let [[_ _ {:keys [did-mount]}] (r/argv this)]
                               (did-mount)))}))
