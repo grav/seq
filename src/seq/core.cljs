@@ -75,11 +75,9 @@
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
                         (swap! app-state update-in [:midi] merge {:inputs  (-> (.values ma.inputs)
-                                                                               es6-iterator-seq
-                                                                               vec)
+                                                                               es6-iterator-seq)
                                                                   :outputs (-> (.values ma.outputs)
-                                                                               es6-iterator-seq
-                                                                               vec)}))]
+                                                                               es6-iterator-seq)}))]
     (-> (js/navigator.requestMIDIAccess)
         (.then (fn [ma]
                  (save-devices! ma)
