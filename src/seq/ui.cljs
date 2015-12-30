@@ -34,6 +34,7 @@
                  (map (fn [j] (contains? (set vs) j)))
                  (map (fn [j v]
                         [:div {:key      j
+                               :on-click #(step-clicked i j v)
                                :on-touch-start #(step-clicked i j v)
                                :style    {:background-color (if (black-key? j)
                                                               "#777"
