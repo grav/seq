@@ -3,16 +3,6 @@
 
 
 
-(defn inputs [ma]
-  (->> (.-inputs ma)
-      (u/js-iterable->vec)
-      (map second)))
-
-(defn outputs [ma]
-  (->> (.-outputs ma)
-       (u/js-iterable->vec)
-       (map second)))
-
 (defn get-output [outputs id]
   (-> (filter #(= (.-id %) id) outputs)
       first))
