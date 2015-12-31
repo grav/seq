@@ -31,15 +31,13 @@
 (def all-notes-off [176 123 00])
 
 (defn ding
-  [out-id v start t]
-  (when-let [out (-> (get-in @app-state [:midi :outputs])
-                     (m/get-output out-id))]
-    (let [{:keys [channel transpose]
-           :or   {channel 0 transpose 0}} (get-in @app-state [:sequences out-id])
-          t1 (* 1000 start)
-          t2 (* 1000 (+ start t))]
-      (.send out #js [(+ channel 144), (+ v transpose), 0x30] t1)
-      (.send out #js [(+ channel 128), (+ v transpose), 0x00] t2))))
+  [out v start t]
+  (let [{:keys [channel transpose]
+         :or   {channel 0 transpose 0}} (get-in @app-state [:sequences (.-id out)])
+        t1 (* 1000 start)
+        t2 (* 1000 (+ start t))]
+    (.send out #js [(+ channel 144), (+ v transpose), 0x30] t1)
+    (.send out #js [(+ channel 128), (+ v transpose), 0x00] t2)))
 
 
 (defn play-sequence! [beat time]
@@ -65,9 +63,11 @@
     (swap! app-state assoc :position p)
     (ding (.-id lp) p now 0.15)
     (doseq [[k s] new-notes]
-      (doseq [[i vs] s]
-        (doseq [v vs]
-          (ding k (+ 0x24 v) i (:sustain @app-state)))))
+      (when-let [out (-> (get-in @app-state [:midi :outputs])
+                         (m/get-output k))]
+        (doseq [[i vs] s]
+         (doseq [v vs]
+           (ding out (+ 0x24 v) i (:sustain @app-state))))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
                                              (apply max))
