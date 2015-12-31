@@ -61,6 +61,10 @@
                             (map (fn [[i v]] [(+ time i) v]))
                             (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
     (swap! app-state assoc :position p)
+
+    (when lp
+      (ding lp (lp/pad->midi p)  now 0.1))
+
     (doseq [[k s] new-notes]
       (when-let [out (-> (get-in @app-state [:midi :outputs])
                          (m/get-output k))]
