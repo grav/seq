@@ -169,9 +169,9 @@
   (let [now (/ (.now (.-performance js/window)) 1000)
         diff (->> data
                   (map (fn [a b] (when (not= a b) b)) (or @state (repeat false))))]
-    (reset! state data)
     (when (nil? @state)
       (.send lp (clj->js lp/clear-all) now))
+    (reset! state data)
     (doseq [[i v] (map vector (range) diff)]
       (when (true? v)
         (.send lp #js [144, (lp/pad->midi i), 0x30] now))
@@ -201,7 +201,7 @@
                                 (offset-data x y)
                                 (crop-data)
                                 (flatten)))))
-               300)))
+               100)))
 
     (def lp-in (first (filter lp/is-launchpad? (:inputs (:midi @app-state)))))
     (set! lp-in.onmidimessage (fn [e] (when-let [[k f] (->> e.data
