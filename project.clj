@@ -18,7 +18,7 @@
 
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "src-common"]
 
               :figwheel {:on-jsload "seq.core/on-js-reload"
                          :websocket-host :js-client-host}
@@ -33,7 +33,17 @@
               :compiler {:output-to "resources/public/js/compiled/seq.js"
                          :main seq.core
                          :optimizations :advanced
-                         :pretty-print false}}]}
+                         :pretty-print false}}
+             {:id           "nodejs"
+              :source-paths ["src-common"]
+              :compiler     {:main          nodejs.test
+                             :target        :nodejs
+                             :node-dependencies [[webmidi-shim "0.1.0"]]
+                             :output-dir    "resources/public/js/compiled/deploy_out"
+                             :output-to     "resources/public/js/compiled/nodejs.js"
+                             :asset-path    "js/compiled/deploy_out"
+                             :source-map    "resources/public/js/compiled/deploy.js.map"
+                             :optimizations :advanced}}]}
 
   :figwheel {
              ;; :http-server-root "public" ;; default and assumes "resources" 

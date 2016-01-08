@@ -1,0 +1,24 @@
+{
+  "name": "seq",
+  "version": "0.1.0",
+  "description": "A Midi step sequencer that runs in the browser.",
+  "main": "index.js",
+  "dependencies": {
+    "source-map-support": "^0.4.0",
+    "webmidi-shim": "^0.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grav/seq.git"
+  },
+  "author": "Mikkel Gravgaard <mikkel@klokke.dk> (https://github.com/grav)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/grav/seq/issues"
+  },
+  "homepage": "https://github.com/grav/seq#readme"
+}
