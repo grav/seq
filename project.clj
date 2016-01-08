@@ -43,7 +43,7 @@
                              :output-to     "resources/public/js/compiled/nodejs.js"
                              :asset-path    "js/compiled/deploy_out"
                              :source-map    "resources/public/js/compiled/deploy.js.map"
-                             :optimizations :advanced}}]}
+                             :optimizations :none}}]}
 
   :figwheel {
              ;; :http-server-root "public" ;; default and assumes "resources" 
