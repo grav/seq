@@ -23,7 +23,7 @@
               :figwheel {:on-jsload "seq.core/on-js-reload"
                          :websocket-host :js-client-host}
 
-              :compiler {:main seq.core
+              :compiler {:main seq.web
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/seq.js"
                          :output-dir "resources/public/js/compiled/out"
@@ -31,12 +31,12 @@
              {:id "min"
               :source-paths ["src" "src-web"]
               :compiler {:output-to "resources/public/js/compiled/seq.js"
-                         :main seq.core
+                         :main seq.web
                          :optimizations :advanced
                          :pretty-print false}}
              {:id           "nodejs"
               :source-paths ["src" "src-nodejs"]
-              :compiler     {:main          nodejs.test
+              :compiler     {:main          seq.nodejs
                              :target        :nodejs
                              :node-dependencies [[webmidi-shim "0.1.0"]]
                              :output-dir    "resources/public/js/compiled/deploy_out"

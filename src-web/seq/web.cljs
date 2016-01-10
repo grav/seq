@@ -1,8 +1,16 @@
-(ns seq.ui
+(ns ^:figwheel-always seq.web
   (:require [reagent.core :as r]
             [seq.launchpad :as lp]
             [seq.util]
-            [cljs.reader]))
+            [cljs.reader]
+            [seq.core :as c]))
+
+(enable-console-print!)
+
+#_(defn on-js-reload []
+  ;; optionally touch your app-state to force rerendering depending on
+  ;; your application
+  (swap! c/app-state update-in [:__figwheel_counter] inc))
 
 (def cell-size 10)
 
@@ -139,26 +147,31 @@
      [controller-view (filter lp/is-launchpad? outputs)]]))
 
 (defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
-                                   handle-val-change nudge sustain]}]
+                                   handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
-                            (let [{:keys [sequences midi position]} @app-state]
-                                [:div
-                                 [main-view {:sequences         sequences
-                                             :midi              midi
-                                             :position          position
-                                             :step-clicked      step-clicked
-                                             :handle-select     handle-midi-select
-                                             :handle-val-change handle-val-change
-                                             :nudge             nudge}]
-                                 [decay-view {:sustain       sustain
-                                              :handle-change #(swap! app-state assoc :sustain %)}]
-                                 [session-view {:handle-select #(->> (aget js/localStorage %)
-                                                                     (cljs.reader/read-string)
-                                                                     (swap! app-state assoc :sequences))
-                                                :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
-                                                                     (aset js/localStorage %))}]]))
+                            (let [{:keys [sequences midi position sustain]} @app-state]
+                              [:div
+                               [main-view {:sequences         sequences
+                                           :midi              midi
+                                           :position          position
+                                           :step-clicked      step-clicked
+                                           :handle-select     handle-midi-select
+                                           :handle-val-change handle-val-change
+                                           :nudge             nudge}]
+                               [decay-view {:sustain       sustain
+                                            :handle-change #(swap! app-state assoc :sustain %)}]
+                               [session-view {:handle-select #(->> (aget js/localStorage %)
+                                                                   (cljs.reader/read-string)
+                                                                   (swap! app-state assoc :sequences))
+                                              :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
+                                                                   (aset js/localStorage %))}]]))
      :component-did-mount setup-midi!}))
 
-(defn main [app-state callbacks]
-  (reagent.core/render [root-view app-state callbacks] (js/document.getElementById "app")))
+(defn main []
+  (reagent.core/render [root-view c/app-state {:setup-midi!        c/setup-midi!
+                                               :step-clicked       c/step-clicked
+                                               :handle-midi-select c/handle-midi-select
+                                               :handle-val-change  c/handle-val-change
+                                               :nudge              c/nudge}]
+                       (js/document.getElementById "app")))

@@ -1,27 +1,14 @@
-(ns ^:figwheel-always seq.core
-  (:require [goog.object :as g]
-            [seq.midi :as m]
-            [seq.ui]
+(ns seq.core
+  (:require [seq.midi :as m]
             [seq.launchpad :as lp]
             [reagent.core :as r]))
 
-(enable-console-print!)
 
-(println "Edits to this text should show up in your developer console.")
-
-;; define your app data so that it doesn't get over-written on reload
-
-(defn on-js-reload []
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
-  ;; (swap! app-state update-in [:__figwheel_counter] inc)
-  )
 
 ;; TODO - how do we do this in a node environment
 (defonce app-state (r/atom {:bpm       120
                             :sustain   0.12
                             :sequences {}}))
-
 (def latency 0.1)
 
 (defn secs-per-tick
@@ -121,10 +108,3 @@
 (defonce go
          (play-sequence! 0 0))
 
-(defn web-main []
-  (seq.ui/main app-state
-               {:setup-midi!        setup-midi!
-                :step-clicked       step-clicked
-                :handle-midi-select handle-midi-select
-                :handle-val-change  handle-val-change
-                :nudge              nudge}))
