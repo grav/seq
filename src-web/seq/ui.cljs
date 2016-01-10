@@ -1,6 +1,8 @@
 (ns seq.ui
   (:require [reagent.core :as r]
-            [seq.launchpad :as lp]))
+            [seq.launchpad :as lp]
+            [seq.util]
+            [cljs.reader]))
 
 (def cell-size 10)
 
@@ -14,7 +16,7 @@
 
 
 (defn step [{:keys [selected? playing?]}]
-  [:div {:style {:background-color (when playing? "yellow" )
+  [:div {:style {:background-color (when playing? "yellow")
                  :height           cell-size
                  :width            cell-size
                  :padding          (min 3 (max 1 (/ cell-size 10)))}}
@@ -34,12 +36,12 @@
             (->> (reverse (take 16 (drop offset (range))))
                  (map (fn [j] (contains? (set vs) j)))
                  (map (fn [j v]
-                        [:div {:key      j
-                               :on-click #(step-clicked i j v)
+                        [:div {:key            j
+                               :on-click       #(step-clicked i j v)
                                :on-touch-start #(step-clicked i j v)
-                               :style    {:background-color (if (black-key? j)
-                                                              "#777"
-                                                              :black)}}
+                               :style          {:background-color (if (black-key? j)
+                                                                    "#777"
+                                                                    :black)}}
                          [step {:selected?   v
                                 :playing?    (= i position)
                                 :step-number i
@@ -103,42 +105,60 @@
                                                                                (refresh-sessions! state))} "Save"]]]))
                               :component-did-mount (refresh-sessions! state)})))
 
-(defn decay-view [app-state handle-change]
-  (let [sustain (:sustain @app-state)]
-    [:div
-     "Sustain"
-     [:input {:type      "range"
-              :min       0
-              :max       0.5
-              :value     sustain
-              :step      0.01
-              :on-change #(handle-change (js/parseFloat (.-target.value %)))}]
-     (str sustain " s")]))
+(defn decay-view [{:keys [sustain handle-change]}]
+  [:div
+   "Sustain"
+   [:input {:type      "range"
+            :min       0
+            :max       0.5
+            :value     sustain
+            :step      0.01
+            :on-change #(handle-change (js/parseFloat (.-target.value %)))}]
+   (str sustain " s")])
 
 (defn controller-view [controllers]
   [:div
    [:h3 "Connected controllers"]
    (for [c controllers]
-     [:div  (.-name c)])])
+     [:div (.-name c)])])
 
-(defn root-view []
+(defn main-view [{:keys [sequences midi position step-clicked handle-val-change nudge]}]
+  (let [{:keys [outputs]} midi]
+    [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
+     [:div {:style {:display "flex"}}
+      (for [o (->> (:outputs midi)
+                   (remove lp/is-launchpad?))]
+        (let [id (.-id o)
+              sequence (get sequences id)]
+          [:div {:style {:margin 10}
+                 :key   id}
+           [:p (.-name o)]
+           [output-view sequence
+            position
+            (map #(partial % id) [step-clicked handle-val-change nudge])]]))]
+     [controller-view (filter lp/is-launchpad? outputs)]]))
+
+(defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
+                                   handle-val-change nudge sustain]}]
   (r/create-class
-    {:reagent-render      (fn [app-state {:keys [step-clicked handle-val-change nudge]}]
-                            (let [{:keys [sequences midi position]} @app-state
-                                  {:keys [outputs]} midi]
-                              [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
-                               [:div {:style {:display "flex"}}
-                                (for [o (->> (:outputs midi)
-                                             (remove lp/is-launchpad?))]
-                                  (let [id (.-id o)
-                                        sequence (get sequences id)]
-                                    [:div {:style {:margin 10}
-                                           :key   id}
-                                     [:p (.-name o)]
-                                     [output-view sequence
-                                      position
-                                      (map #(partial % id) [step-clicked handle-val-change nudge])]]))]
-                               [controller-view (filter lp/is-launchpad? outputs)]]))
-     :component-did-mount (fn [this]
-                            (let [[_ _ {:keys [did-mount]}] (r/argv this)]
-                              (did-mount)))}))
+    {:reagent-render      (fn []
+                            (let [{:keys [sequences midi position]} @app-state]
+                                [:div
+                                 [main-view {:sequences         sequences
+                                             :midi              midi
+                                             :position          position
+                                             :step-clicked      step-clicked
+                                             :handle-select     handle-midi-select
+                                             :handle-val-change handle-val-change
+                                             :nudge             nudge}]
+                                 [decay-view {:sustain       sustain
+                                              :handle-change #(swap! app-state assoc :sustain %)}]
+                                 [session-view {:handle-select #(->> (aget js/localStorage %)
+                                                                     (cljs.reader/read-string)
+                                                                     (swap! app-state assoc :sequences))
+                                                :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
+                                                                     (aset js/localStorage %))}]]))
+     :component-did-mount setup-midi!}))
+
+(defn main [app-state callbacks]
+  (reagent.core/render [root-view app-state callbacks] (js/document.getElementById "app")))

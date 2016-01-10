@@ -1,4 +1,4 @@
-(ns nodejs.test
+(ns nodejs.nodejs
   (:require [cljs.nodejs :as nodejs]))
 
 (nodejs/enable-util-print!)

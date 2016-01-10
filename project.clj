@@ -18,7 +18,7 @@
 
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src" "src-common"]
+              :source-paths ["src" "src-web"]
 
               :figwheel {:on-jsload "seq.core/on-js-reload"
                          :websocket-host :js-client-host}
@@ -29,13 +29,13 @@
                          :output-dir "resources/public/js/compiled/out"
                          :source-map-timestamp true }}
              {:id "min"
-              :source-paths ["src"]
+              :source-paths ["src" "src-web"]
               :compiler {:output-to "resources/public/js/compiled/seq.js"
                          :main seq.core
                          :optimizations :advanced
                          :pretty-print false}}
              {:id           "nodejs"
-              :source-paths ["src-common"]
+              :source-paths ["src" "src-nodejs"]
               :compiler     {:main          nodejs.test
                              :target        :nodejs
                              :node-dependencies [[webmidi-shim "0.1.0"]]
