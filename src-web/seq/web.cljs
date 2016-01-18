@@ -43,14 +43,14 @@
            [:div {:key i}
             (->> (reverse (take 16 (drop offset (range))))
                  (map (fn [j] (contains? (set vs) j)))
-                 (map (fn [j v]
+                 (map (fn [j selected]
                         [:div {:key            j
-                               :on-click       #(step-clicked i j v)
-                               :on-touch-start #(step-clicked i j v)
+                               :on-click       #(step-clicked i j)
+                               :on-touch-start #(step-clicked i j)
                                :style          {:background-color (if (black-key? j)
                                                                     "#777"
                                                                     :black)}}
-                         [step {:selected?   v
+                         [step {:selected?   selected
                                 :playing?    (= i position)
                                 :step-number i
                                 :key         j}]])

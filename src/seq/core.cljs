@@ -86,13 +86,15 @@
 (defn handle-val-change [output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
-(defn step-clicked [output step-number key selected?]
+(defn step-clicked [output step-number key]
+  
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
-        keys (->> (get seq step-number)
-                  (cons key)
-                  (remove #(when selected? (= % key))))
-        new-seq (assoc seq step-number keys)]
+        keys (get seq step-number)
+        new-keys (if (contains? (set keys) key)
+                   (remove #(= % key) keys)
+                   (cons key keys))
+        new-seq (assoc seq step-number new-keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
 (defn nudge [id v]
