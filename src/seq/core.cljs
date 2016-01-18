@@ -1,6 +1,5 @@
 (ns seq.core
   (:require [seq.midi :as m]
-            [seq.launchpad :as lp]
             [reagent.core :as r]))
 
 
@@ -28,7 +27,7 @@
 (defn play-sequence! [beat time]
   #_(swap! app-state assoc :pointer (mod beat 16))
   (let [lp (first (->> (get-in @app-state [:midi :outputs])
-                       (filter lp/is-launchpad?)))
+                       (filter false? #_lp/is-launchpad?)))
         p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
