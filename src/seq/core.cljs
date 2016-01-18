@@ -9,7 +9,7 @@
 (defonce app-state (r/atom {:bpm       120
                             :sustain   0.12
                             :sequences {}}))
-(def latency 0.1)
+(def latency 1)
 
 (defn secs-per-tick
   [bpm]
