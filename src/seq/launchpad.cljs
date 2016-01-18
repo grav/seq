@@ -1,4 +1,6 @@
-(ns seq.launchpad)
+(ns seq.launchpad
+  (:require [seq.core]
+            [seq.scale]))
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
@@ -60,34 +62,39 @@
 
 (defn sequence->lp-data [sequence]
   (map #(map (fn [v] (contains? (set v) %)) sequence)
-       (range)))
+       (seq.scale/inf-scale seq.scale/penta)))
 
-(comment
+(defn output-to-lp [app-state]
+  (let [lp (first (filter is-launchpad? (:outputs (:midi @app-state))))
+        lp-in (first (filter is-launchpad? (:inputs (:midi @app-state))))
+        render (partial render (atom))]
 
-  (do
-    (def lp (first (filter lp/is-launchpad? (:outputs (:midi @app-state)))))
-    (js/clearInterval i)
-    (let [render (partial render (atom))]
-
-      (def i (js/setInterval
-               (fn [_]
-                 (let [{:keys [x y]
-                        :or   {x 0
-                               y 0}} (:launchpad @app-state)]
-                   (render lp
-                           (->> (get-in @app-state [:sequences "688368084" :sequence])
-                                (sequence->lp-data)
-                                (offset-data x y)
-                                (crop-data)
-                                (flatten)))))
-               100)))
-
-    (def lp-in (first (filter lp/is-launchpad? (:inputs (:midi @app-state)))))
     (set! lp-in.onmidimessage (fn [e] (when-let [[k f] (->> e.data
                                                             (js/Array.from)
                                                             (js->clj)
-                                                            (get lp/navigation))]
+                                                            (get navigation))]
                                         (let [old-val (or (get-in @app-state [:launchpad k])
                                                           0)
                                               new-val (max 0 (f old-val))]
-                                          (swap! app-state assoc-in [:launchpad k] new-val)))))))
+                                          (swap! app-state assoc-in [:launchpad k] new-val)))))
+
+    (js/setInterval
+      (fn [_]
+        (let [{:keys [x y]
+               :or   {x 0
+                      y 0}} (:launchpad @app-state)]
+          (render lp
+                  (->> (:sequences @app-state)
+                       (vals)
+                       (first)
+                       (vals)
+                       (first)
+                       (sequence->lp-data)
+                       (offset-data x y)
+                       (crop-data)
+                       (flatten)))))
+      100)))
+
+(comment
+
+  )
