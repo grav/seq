@@ -107,10 +107,17 @@
                                   (when-let [note (pad-note midi-msg)]
                                     (let [pad-note (midi->pad note)
                                           step-number (mod pad-note 8)
-                                          key (int (/ pad-note 8))
-                                          output (first (keys (:sequences @seq.core/app-state)))]
-                                      ;; TODO - call step-clicked with correct x-y offset
-                                      (seq.core/step-clicked output step-number key))))))
+                                          k (int (/ pad-note 8))
+                                          {:keys [sequences launchpad]} @app-state
+                                          {:keys [x y index]
+                                           :or {x 0 y 0 index 0}} launchpad
+                                          idx (min index (dec (count sequences)))
+                                          outputs (->> sequences
+                                                       (sort-by key)
+                                                       (map first)
+                                                       (vec))]
+                                      (when-let [output (get outputs idx)]
+                                        (seq.core/step-clicked output (+ x step-number) (+ y k))))))))
 
     (js/setInterval
       (fn [_]
@@ -118,11 +125,13 @@
                :or   {x     0
                       y     0
                       index 0}} (:launchpad @app-state)
-              sequences (-> (:sequences @app-state)
-                            (vals))
+              sequences (->> (:sequences @app-state)
+                             (sort-by key)
+                             (map second)
+                             (map :sequence)
+                             (vec))
               sequence (->> (min index (dec (count sequences)))
-                            (nth sequences)
-                            :sequence)]
+                            (get sequences))]
           (render lp
                   (-> sequence
                       (sequence->lp-data)
