@@ -81,62 +81,65 @@
              (= c 127))
     b))
 
+(defn- on-midi-message [app-state e]
+  ;; navigation
+  (let [midi-msg (->> e.data
+                      (js/Array.from)
+                      (js->clj))]
+    (when-let [[k f] (get navigation midi-msg)]
+      (let [old-val (or (get-in @app-state [:launchpad k])
+                        0)
+            new-val (max 0 (f old-val))]
+        (swap! app-state assoc-in [:launchpad k] new-val)))
+
+    ;; right-side arrows
+    (when-let [index (right-side-arrow midi-msg)]
+      (swap! app-state assoc-in [:launchpad :index] index))
+
+    (when-let [note (pad-note midi-msg)]
+      (let [pad-note (midi->pad note)
+            step-number (mod pad-note 8)
+            k (int (/ pad-note 8))
+            {:keys [sequences launchpad]} @app-state
+            {:keys [x y index]
+             :or   {x 0 y 0 index 0}} launchpad
+            idx (min index (dec (count sequences)))
+            outputs (->> sequences
+                         (sort-by key)
+                         (map first)
+                         (vec))]
+        (when-let [output (get outputs idx)]
+          (seq.core/step-clicked output (+ x step-number) (+ y k)))))))
+
+(defn on-render [app-state lp-state lp]
+  (let [{:keys [x y index]
+         :or   {x     0
+                y     0
+                index 0}} (:launchpad @app-state)
+        sequences (->> (:sequences @app-state)
+                       (sort-by key)
+                       (map second)
+                       (map :sequence)
+                       (vec))
+        sequence (->> (min index (dec (count sequences)))
+                      (get sequences))]
+    (render lp-state
+            lp
+            (-> sequence
+                (sequence->lp-data)
+                (offset-data x y)
+                (crop-data)
+                (flatten)))))
+
 (defn output-to-lp [app-state]
   (let [lp (first (filter is-launchpad? (:outputs (:midi @app-state))))
         lp-in (first (filter is-launchpad? (:inputs (:midi @app-state))))
-        lp-state (atom)
-        render (partial render lp-state)]
+        lp-state (atom)]
 
     (prn "lp:" lp "lp-in:" lp-in)
 
-    (set! lp-in.onmidimessage (fn [e]
-                                ;; navigation
-                                (let [midi-msg (->> e.data
-                                                    (js/Array.from)
-                                                    (js->clj))]
-                                  (when-let [[k f] (get navigation midi-msg)]
-                                    (let [old-val (or (get-in @app-state [:launchpad k])
-                                                      0)
-                                          new-val (max 0 (f old-val))]
-                                      (swap! app-state assoc-in [:launchpad k] new-val)))
+    (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message app-state))
 
-                                  ;; right-side arrows
-                                  (when-let [index (right-side-arrow midi-msg)]
-                                    (swap! app-state assoc-in [:launchpad :index] index))
-
-                                  (when-let [note (pad-note midi-msg)]
-                                    (let [pad-note (midi->pad note)
-                                          step-number (mod pad-note 8)
-                                          k (int (/ pad-note 8))
-                                          {:keys [sequences launchpad]} @app-state
-                                          {:keys [x y index]
-                                           :or {x 0 y 0 index 0}} launchpad
-                                          idx (min index (dec (count sequences)))
-                                          outputs (->> sequences
-                                                       (sort-by key)
-                                                       (map first)
-                                                       (vec))]
-                                      (when-let [output (get outputs idx)]
-                                        (seq.core/step-clicked output (+ x step-number) (+ y k))))))))
-
-    (js/setInterval
-      (fn [_]
-        (let [{:keys [x y index]
-               :or   {x     0
-                      y     0
-                      index 0}} (:launchpad @app-state)
-              sequences (->> (:sequences @app-state)
-                             (sort-by key)
-                             (map second)
-                             (map :sequence)
-                             (vec))
-              sequence (->> (min index (dec (count sequences)))
-                            (get sequences))]
-          (render lp
-                  (-> sequence
-                      (sequence->lp-data)
-                      (offset-data x y)
-                      (crop-data)
-                      (flatten)))))
+    (js/setInterval #(seq.launchpad/on-render app-state lp-state lp)
       100)))
 
