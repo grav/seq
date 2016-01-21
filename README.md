@@ -18,7 +18,8 @@ The plans for the future include:
 - Saving the port and inactive devices between sessions
 - Creating several parallel step sequencers for each device (with different ports)
 - ~~Saving the sequences(!)~~
-- ~~Showing the playhead~~
+- ~~Showing the playhead~~ (currently unprecise)
+- Support for Launchpad as input/output device (work in progress)
 
 ## Setup
 
