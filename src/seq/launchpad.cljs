@@ -32,8 +32,8 @@
 (def navigation
   {[176, 104, 127] [:y inc]                                 ;; up
    [176, 105, 127] [:y dec]                                 ;; down
-   [176, 106, 127] [:x dec]                                 ;; left
-   [176, 107, 127] [:x inc]                                 ;; right
+   [176, 106, 127] [:x (constantly 0)]                                 ;; left
+   [176, 107, 127] [:x (constantly 8)]                                 ;; right
    })
 
 (defn right-side-arrow [[a b c]]
