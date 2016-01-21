@@ -14,12 +14,16 @@ Check out the [video at Vimeo](https://vimeo.com/146959755)
 
 The plans for the future include:
 
-- De-activating MIDI outputs 
+- Multiple patterns per device
+- De-activating MIDI devices 
 - Saving the port and inactive devices between sessions
 - Creating several parallel step sequencers for each device (with different ports)
 - ~~Saving the sequences(!)~~
 - ~~Showing the playhead~~ (currently unprecise)
 - Support for Launchpad as input/output device (work in progress)
+- Variable pattern length
+- Shuffle
+- Parameter sequencing (velocity, CC#, ...)
 
 ## Setup
 
