@@ -1,6 +1,5 @@
 (ns seq.launchpad
-  (:require [seq.core]
-            [seq.scale]))
+  (:require [seq.scale]))
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
@@ -81,7 +80,7 @@
              (= c 127))
     b))
 
-(defn- on-midi-message [app-state e]
+(defn- on-midi-message [app-state step-clicked e]
   ;; navigation
   (let [midi-msg (->> e.data
                       (js/Array.from)
@@ -109,7 +108,7 @@
                          (map first)
                          (vec))]
         (when-let [output (get outputs idx)]
-          (seq.core/step-clicked output (+ x step-number) (+ y k)))))))
+          (step-clicked output (+ x step-number) (+ y k)))))))
 
 (defn on-render [app-state lp-state lp]
   (let [{:keys [x y index]
@@ -131,15 +130,13 @@
                 (crop-data)
                 (flatten)))))
 
-(defn output-to-lp [app-state]
-  (let [lp (first (filter is-launchpad? (:outputs (:midi @app-state))))
-        lp-in (first (filter is-launchpad? (:inputs (:midi @app-state))))
-        lp-state (atom)]
+(defn init [app-state lp-in lp-out step-clicked]
+  (let [lp-state (atom)]
 
-    (prn "lp:" lp "lp-in:" lp-in)
+    (prn "lp-out:" lp-out "lp-in:" lp-in)
 
-    (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message app-state))
+    (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message app-state step-clicked))
 
-    (js/setInterval #(seq.launchpad/on-render app-state lp-state lp)
+    (js/setInterval #(seq.launchpad/on-render app-state lp-state lp-out)
       100)))
 

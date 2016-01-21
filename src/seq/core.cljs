@@ -1,6 +1,7 @@
 (ns seq.core
   (:require [seq.midi :as m]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [seq.launchpad]))
 
 
 
@@ -63,17 +64,7 @@
           time' (+ (* spt c) time)]
       (js/setTimeout #(seq.core/play-sequence! beat' time') (* latency 1000)))))
 
-(defn setup-midi! []
-  (let [save-devices! (fn [ma]
-                        (swap! app-state update-in [:midi] merge {:inputs  (-> (.values ma.inputs)
-                                                                               es6-iterator-seq)
-                                                                  :outputs (-> (.values ma.outputs)
-                                                                               es6-iterator-seq)}))]
-    (-> (js/navigator.requestMIDIAccess)
-        (.then (fn [ma]
-                 (save-devices! ma)
-                 ;; Update devices continously
-                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
+
 
 (defn handle-midi-select [state-key selection-key]
   (fn [val]
@@ -95,6 +86,24 @@
                    (cons key keys))
         new-seq (assoc seq step-number new-keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
+
+(defn setup-midi! []
+  (let [save-devices! (fn [ma]
+                        (swap! app-state update-in [:midi] merge {:inputs  (-> (.values ma.inputs)
+                                                                               es6-iterator-seq)
+                                                                  :outputs (-> (.values ma.outputs)
+                                                                               es6-iterator-seq)})
+                        (js/clearInterval (get-in @app-state [:launchpad :render-callback-id]))
+                        (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs (:midi @app-state))))
+                              lp-out (first (filter seq.launchpad/is-launchpad? (:outputs (:midi @app-state))))]
+                          (when (and lp-in lp-out)
+                            (->> (seq.launchpad/init app-state lp-in lp-out seq.core/step-clicked)
+                                 (swap! app-state assoc-in [:launchpad :render-callback-id])))))]
+    (-> (js/navigator.requestMIDIAccess)
+        (.then (fn [ma]
+                 (save-devices! ma)
+                 ;; Update devices continously
+                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
 
 (defn nudge [id v]
   (when-let [seq (get-in @app-state [:sequences id :sequence])]
