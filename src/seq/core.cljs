@@ -3,7 +3,14 @@
             [reagent.core :as r]
             [seq.launchpad]))
 
-
+(defn sequences [app-state]
+  (let [{:keys [midi sequences]} @app-state]
+    (->> (map (fn [o] {:name     (.-name o)
+                       :id       (.-id o)
+                       :device   o
+                       :sequence (get sequences (.-id o))})
+              (:outputs midi))
+         (sort-by :name))))
 
 ;; TODO - how do we do this in a node environment
 (defonce app-state (r/atom {:bpm       120
