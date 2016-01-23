@@ -10,7 +10,8 @@
                  [reagent "0.5.1"]
                  [figwheel-sidecar "0.4.1"]]
 
-  :plugins [[lein-cljsbuild "1.1.0"]]
+  :plugins [[lein-cljsbuild "1.1.0"]
+            [lein-figwheel "0.4.1"]]
 
   :source-paths ["src"]
 
