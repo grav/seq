@@ -130,30 +130,26 @@
    (for [c controllers]
      [:div (.-name c)])])
 
-(defn main-view [{:keys [sequences midi position step-clicked handle-val-change nudge]}]
-  (let [{:keys [outputs]} midi]
-    [:div [:h3 (str "Seq - " (count outputs) " output devices connected")]
-     [:div {:style {:display "flex"}}
-      (for [o (->> (:outputs midi)
-                   (remove lp/is-launchpad?))]
-        (let [id (.-id o)
-              sequence (get sequences id)]
-          [:div {:style {:margin 10}
-                 :key   id}
-           [:p (.-name o)]
-           [output-view sequence
-            position
-            (map #(partial % id) [step-clicked handle-val-change nudge])]]))]
-     [controller-view (filter lp/is-launchpad? outputs)]]))
+(defn main-view [{:keys [tracks position step-clicked handle-val-change nudge]}]
+	[:div [:h3 (str "Seq - " (count tracks) " tracks")]
+	 [:div {:style {:display "flex"}}
+	  (for [{:keys [id name device sequence]} (->> tracks
+									 														#_(remove lp/is-launchpad?))]
+	      [:div {:style {:margin 10}
+	             :key   id}
+	       [:p name]
+	       [output-view sequence
+	        position
+	        (map #(partial % id) [step-clicked handle-val-change nudge])]])]
+	 #_[controller-view (filter lp/is-launchpad? outputs)]])
 
 (defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
                                    handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
-                            (let [{:keys [sequences midi position sustain]} @app-state]
+                            (let [{:keys [position sustain]} @app-state]
                               [:div
-                               [main-view {:sequences         sequences
-                                           :midi              midi
+                               [main-view {:tracks           (c/tracks @app-state)
                                            :position          position
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select

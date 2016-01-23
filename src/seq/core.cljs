@@ -3,10 +3,10 @@
             [reagent.core :as r]
             [seq.launchpad]))
 
-(defn sequences [app-state]
-  (let [{:keys [midi sequences]} @app-state]
+(defn tracks [state]
+  (let [{:keys [midi sequences]} state]
     (->> (map (fn [o] {:name     (.-name o)
-                       :id       (.-id o)
+					   :id       (.-id o)
                        :device   o
                        :sequence (get sequences (.-id o))})
               (:outputs midi))
