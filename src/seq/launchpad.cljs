@@ -3,10 +3,15 @@
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
-  (and (= "Launchpad"
-          (.-name d))
-       (= "Novation DMS Ltd"
-          (.-manufacturer d))))
+
+  (-> {:lp-mini {:name "Launchpad Mini"
+                 :manu "Focusrite A.E. Ltd"}
+       :lp      {:name "Launchpad"
+                 :manu "Novation DMS Ltd"}}
+      (vals)
+      (set)
+      (contains? {:name (.-name d)
+                  :manu (.-manufacturer d)})))
 
 (defn- inverse [n]
   (->> (* 8 (inc (int (/ n 8))))
@@ -31,8 +36,8 @@
 (def navigation
   {[176, 104, 127] [:y inc]                                 ;; up
    [176, 105, 127] [:y dec]                                 ;; down
-   [176, 106, 127] [:x (constantly 0)]                                 ;; left
-   [176, 107, 127] [:x (constantly 8)]                                 ;; right
+   [176, 106, 127] [:x (constantly 0)]                      ;; left
+   [176, 107, 127] [:x (constantly 8)]                      ;; right
    })
 
 (defn right-side-arrow [[a b c]]
@@ -84,19 +89,19 @@
   ;; navigation
   (let [tracks (tracks-fn)
         launchpad (launchpad-fn)
-	    midi-msg (->> e.data
+        midi-msg (->> e.data
                       (js/Array.from)
                       (js->clj))]
     (when-let [[k f] (get navigation midi-msg)]
       (let [old-val (or (get launchpad k) 0)
             new-val (max 0 (f old-val))]
-		(update-launchpad (assoc launchpad k new-val))))
+        (update-launchpad (assoc launchpad k new-val))))
 
     ;; right-side arrows
     (when-let [index (right-side-arrow midi-msg)]
-	  (update-launchpad (assoc launchpad :index index)))
+      (update-launchpad (assoc launchpad :index index)))
 
-	;; notes
+    ;; notes
     (when-let [note (pad-note midi-msg)]
       (let [pad-note (midi->pad note)
             step-number (mod pad-note 8)
@@ -105,15 +110,15 @@
              :or   {x 0 y 0 index 0}} launchpad
             idx (min index (dec (count tracks)))
             {:keys [device name]} (get (vec tracks) idx)]
-          (step-clicked (.-id device) (+ x step-number) (+ y k))))))
+        (step-clicked (.-id device) (+ x step-number) (+ y k))))))
 
 (defn on-render [tracks {:keys [x y index]
-			 			 :or   {x     0
-    						 	y     0
-								index 0}} 
-				 render-state lp]
+                         :or   {x     0
+                                y     0
+                                index 0}}
+                 render-state lp]
   (let [idx (min index (dec (count tracks)))
-	  	sequence (get-in (vec tracks) [idx :sequence :sequence])]
+        sequence (get-in (vec tracks) [idx :sequence :sequence])]
     (render render-state
             lp
             (-> sequence
@@ -127,8 +132,8 @@
 
     (prn "lp-out:" lp-out "lp-in:" lp-in)
 
-  (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message tracks-fn launchpad-fn update-launchpad step-clicked))
+    (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message tracks-fn launchpad-fn update-launchpad step-clicked))
 
-  (js/setInterval #(seq.launchpad/on-render (tracks-fn) (launchpad-fn) render-state lp-out)
-      100)))
+    (js/setInterval #(seq.launchpad/on-render (tracks-fn) (launchpad-fn) render-state lp-out)
+                    100)))
 
