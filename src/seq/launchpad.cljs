@@ -127,7 +127,7 @@
         sequence (get-in (vec tracks) [idx :sequence :sequence])]
     (render render-state
             lp
-            (-> sequence
+            (-> (or sequence (repeat '()))
                 (sequence->lp-data)
                 (offset-data x y)
                 (crop-data)
