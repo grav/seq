@@ -1,15 +1,16 @@
 (ns seq.core
   (:require [seq.midi :as m]
             [reagent.core :as r]
-            [seq.launchpad]))
+            [seq.launchpad :as lp]))
 
 (defn tracks [state]
   (let [{:keys [midi sequences]} state]
-    (->> (map (fn [o] {:name     (.-name o)
-					   :id       (.-id o)
+    (->> (:outputs midi)
+         (remove lp/is-launchpad?)
+         (map (fn [o] {:name     (.-name o)
+                       :id       (.-id o)
                        :device   o
-                       :sequence (get sequences (.-id o))})
-              (:outputs midi))
+                       :sequence (get sequences (.-id o))}))
          (sort-by :name))))
 
 ;; TODO - how do we do this in a node environment
@@ -51,18 +52,18 @@
         now (/ (.now (.-performance js/window)) 1000)
         new-notes (for [{:keys [device sequence]} (tracks @app-state)
                         :when (:sequence sequence)]
-                    {:device device
-                      :next-notes (next-notes sequence p now time spt)
-                      :channel (or (:channel sequence) 0)} )]
+                    {:device     device
+                     :next-notes (next-notes sequence p now time spt)
+                     :channel    (or (:channel sequence) 0)})]
     (swap! app-state assoc :position p)
 
     #_(when lp
         (ding lp (lp/pad->midi p) now 0.1))
 
-    (doseq [{:keys [device next-notes channel]} new-notes]      
-        (doseq [[i vs] next-notes]
-          (doseq [v vs]
-            (ding device channel (+ 0x24 v) i (:sustain @app-state)))))
+    (doseq [{:keys [device next-notes channel]} new-notes]
+      (doseq [[i vs] next-notes]
+        (doseq [v vs]
+          (ding device channel (+ 0x24 v) i (:sustain @app-state)))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
                                              (apply max))
@@ -84,7 +85,7 @@
   (swap! app-state assoc-in [:sequences output key] val))
 
 (defn step-clicked [output step-number key]
-  
+
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
         keys (get seq step-number)
@@ -105,12 +106,12 @@
                                     :outputs (-> (.values ma.outputs)
                                                  es6-iterator-seq)}]
                           (swap! app-state assoc :midi midi)
-                            (js/clearInterval (:render-callback-id launchpad))
-                            (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs midi)))
-                                  lp-out (first (filter seq.launchpad/is-launchpad? (:outputs midi)))]
-                              (when (and lp-in lp-out)
-                                (->> (seq.launchpad/init #(tracks @app-state) #(:launchpad @app-state) update-launchpad lp-in lp-out seq.core/step-clicked)
-                                     (swap! app-state assoc-in [:launchpad :render-callback-id]))))))]
+                          (js/clearInterval (:render-callback-id launchpad))
+                          (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs midi)))
+                                lp-out (first (filter seq.launchpad/is-launchpad? (:outputs midi)))]
+                            (when (and lp-in lp-out)
+                              (->> (seq.launchpad/init #(tracks @app-state) #(:launchpad @app-state) update-launchpad lp-in lp-out seq.core/step-clicked)
+                                   (swap! app-state assoc-in [:launchpad :render-callback-id]))))))]
     (-> (js/navigator.requestMIDIAccess)
         (.then (fn [ma]
                  (save-devices! ma)
