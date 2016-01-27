@@ -127,21 +127,21 @@
 (defn controller-view [controllers]
   [:div
    [:h3 "Connected controllers"]
-   (for [c controllers]
-     [:div (.-name c)])])
+   [:ul (for [c controllers]
+     [:li {:key (.-id c)}
+       (.-name c)])]])
 
-(defn main-view [{:keys [tracks position step-clicked handle-val-change nudge]}]
+(defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
 	[:div [:h3 (str "Seq - " (count tracks) " tracks")]
 	 [:div {:style {:display "flex"}}
-	  (for [{:keys [id name device sequence]} (->> tracks
-									 														#_(remove lp/is-launchpad?))]
-	      [:div {:style {:margin 10}
+	  (for [[{:keys [id name device sequence]} idx] (map vector tracks (range))]
+	      [:div {:style {:margin 10
+                       :background (when (= idx selected-track) :green)}
 	             :key   id}
 	       [:p name]
 	       [output-view sequence
 	        position
-	        (map #(partial % id) [step-clicked handle-val-change nudge])]])]
-	 #_[controller-view (filter lp/is-launchpad? outputs)]])
+	        (map #(partial % id) [step-clicked handle-val-change nudge])]])]])
 
 (defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
                                    handle-val-change nudge]}]
@@ -150,6 +150,7 @@
                             (let [{:keys [position sustain]} @app-state]
                               [:div
                                [main-view {:tracks           (c/tracks @app-state)
+                                           :selected-track   (get-in @app-state [:launchpad :index])
                                            :position          position
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select
@@ -161,7 +162,10 @@
                                                                    (cljs.reader/read-string)
                                                                    (swap! app-state assoc :sequences))
                                               :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
-                                                                   (aset js/localStorage %))}]]))
+                                                                   (aset js/localStorage %))}]
+                                (let [controllers (filter lp/is-launchpad? (get-in @app-state [:midi :inputs]))]
+                                  (when-not (empty? controllers)
+                                    [controller-view controllers]))]))
      :component-did-mount setup-midi!}))
 
 (defn main []
