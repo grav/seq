@@ -19,7 +19,7 @@
                            [176 110] :modifier/user2
                            [176 111] :modifier/mixer}
                           (get [a b]))]
-    {:name modifier
+    {:name     modifier
      :enabled? (= vel 127)}))
 
 (defn- inverse [n]
@@ -42,12 +42,12 @@
 
 (def clear-all [176 0 0])
 
-(def navigation
-  {[176, 104, 127] [:y #(+ % 8)]                            ;; up
-   [176, 105, 127] [:y #(- % 8)]                            ;; down
-   [176, 106, 127] [:x (constantly 0)]                      ;; left
-   [176, 107, 127] [:x (constantly 8)]                      ;; right
-   })
+(defn navigation [midi-msg modifier]
+  (get {[176, 104, 127] [:y #(+ % (if modifier 1 8))]       ;; up
+        [176, 105, 127] [:y #(- % (if modifier 1 8))]       ;; down
+        [176, 106, 127] [:x (constantly 0)]                 ;; left
+        [176, 107, 127] [:x (constantly 8)]                 ;; right
+        } midi-msg))
 
 (defn right-side-arrow [[a b c]]
   (when (and (= a 144)
@@ -76,16 +76,16 @@
       (.send lp (clj->js clear-all) now))
     (reset! state data)
     (doseq [[i v] (map vector (range) diff)]
-          (when (true? v)
-            (.send lp #js [144, (pad->midi i), 0x20] now))
-          (when (false? v)
-            (.send lp #js [144, (pad->midi i), 0x20] now)))
+      (when (true? v)
+        (.send lp #js [144, (pad->midi i), 0x20] now))
+      (when (false? v)
+        (.send lp #js [144, (pad->midi i), 0x20] now)))
 
     (js/setTimeout #(doseq [[i v] (map vector (range) diff)]
-      (when (true? v)
-        (.send lp #js [144, (pad->midi i), 0x30] now))
-      (when (false? v)
-        (.send lp #js [144, (pad->midi i), 0x00] now))) 50)))
+                     (when (true? v)
+                       (.send lp #js [144, (pad->midi i), 0x30] now))
+                     (when (false? v)
+                       (.send lp #js [144, (pad->midi i), 0x00] now))) 50)))
 
 
 (defn sequence->lp-data [sequence]
@@ -107,7 +107,7 @@
         midi-msg (->> e.data
                       (js/Array.from)
                       (js->clj))]
-    (when-let [[k f] (get navigation midi-msg)]
+    (when-let [[k f] (navigation midi-msg (:modifier/user1 modifiers))]
       (let [old-val (or (get launchpad k) 0)
             new-val (max 0 (f old-val))]
         (update-launchpad (assoc launchpad k new-val))))
@@ -119,6 +119,7 @@
 
     ;; notes
     (when-let [note (pad-note midi-msg)]
+      (prn note)
       (let [pad-note (midi->pad note)
             step-number (mod pad-note 8)
             k (int (/ pad-note 8))
