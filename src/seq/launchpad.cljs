@@ -148,12 +148,8 @@
                 (flatten)))))
 
 (defn init [tracks-fn launchpad-fn update-launchpad lp-in lp-out step-clicked]
+  (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message tracks-fn launchpad-fn update-launchpad step-clicked))
   (let [render-state (atom)]
-
-    (prn "lp-out:" lp-out "lp-in:" lp-in)
-
-    (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message tracks-fn launchpad-fn update-launchpad step-clicked))
-
     (js/setInterval #(seq.launchpad/on-render (tracks-fn) (launchpad-fn) render-state lp-out)
                     100)))
 
