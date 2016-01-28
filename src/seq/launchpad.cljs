@@ -13,6 +13,15 @@
       (contains? {:name (.-name d)
                   :manu (.-manufacturer d)})))
 
+(defn modifier [[a b vel]]
+  (when-let [modifier (-> {[176 108] :modifier/session
+                           [176 109] :modifier/user1
+                           [176 110] :modifier/user2
+                           [176 111] :modifier/mixer}
+                          (get [a b]))]
+    {:name modifier
+     :enabled? (= vel 127)}))
+
 (defn- inverse [n]
   (->> (* 8 (inc (int (/ n 8))))
        (- 64)
@@ -34,8 +43,8 @@
 (def clear-all [176 0 0])
 
 (def navigation
-  {[176, 104, 127] [:y #(+ % 8)]                                 ;; up
-   [176, 105, 127] [:y #(- % 8)]                                 ;; down
+  {[176, 104, 127] [:y #(+ % 8)]                            ;; up
+   [176, 105, 127] [:y #(- % 8)]                            ;; down
    [176, 106, 127] [:x (constantly 0)]                      ;; left
    [176, 107, 127] [:x (constantly 8)]                      ;; right
    })
@@ -116,7 +125,10 @@
              :or   {x 0 y 0 index 0}} launchpad
             idx (min index (dec (count tracks)))
             {:keys [device]} (get (vec tracks) idx)]
-        (step-clicked (.-id device) (+ x step-number) (+ y k))))))
+        (step-clicked (.-id device) (+ x step-number) (+ y k))))
+
+    (when-let [{:keys [name enabled?]} (modifier midi-msg)]
+      (update-launchpad (merge-with merge launchpad {:modifiers {name enabled?}})))))
 
 (defn on-render [tracks {:keys [x y index]
                          :or   {x     0
