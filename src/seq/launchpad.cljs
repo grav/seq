@@ -115,7 +115,7 @@
             {:keys [x y index]
              :or   {x 0 y 0 index 0}} launchpad
             idx (min index (dec (count tracks)))
-            {:keys [device name]} (get (vec tracks) idx)]
+            {:keys [device]} (get (vec tracks) idx)]
         (step-clicked (.-id device) (+ x step-number) (+ y k))))))
 
 (defn on-render [tracks {:keys [x y index]
