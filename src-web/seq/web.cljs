@@ -131,7 +131,8 @@
           [:li {:key (.-id c)}
            (.-name c)])]
    (for [[n enabled?] modifiers]
-     (when enabled? [:span {:style {:margin 5}} (name n)]))])
+     (when enabled? [:span {:style {:margin 5}
+                            :key (str n)} (name n)]))])
 
 (defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
   [:div [:h3 (str "Seq - " (count tracks) " tracks")]

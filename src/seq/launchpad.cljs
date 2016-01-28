@@ -103,7 +103,7 @@
 (defn- on-midi-message [tracks-fn launchpad-fn update-launchpad step-clicked e]
   ;; navigation
   (let [tracks (tracks-fn)
-        launchpad (launchpad-fn)
+        {:keys [modifiers] :as launchpad} (launchpad-fn)
         midi-msg (->> e.data
                       (js/Array.from)
                       (js->clj))]
@@ -114,7 +114,8 @@
 
     ;; right-side arrows
     (when-let [index (right-side-arrow midi-msg)]
-      (update-launchpad (assoc launchpad :index index)))
+      (if (:modifier/user1 modifiers)
+        (update-launchpad (assoc launchpad :index index))))
 
     ;; notes
     (when-let [note (pad-note midi-msg)]
