@@ -8,9 +8,9 @@
 (enable-console-print!)
 
 #_(defn on-js-reload []
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
-  (swap! c/app-state update-in [:__figwheel_counter] inc))
+    ;; optionally touch your app-state to force rerendering depending on
+    ;; your application
+    (swap! c/app-state update-in [:__figwheel_counter] inc))
 
 (def cell-size 10)
 
@@ -128,29 +128,37 @@
   [:div
    [:h3 "Connected controllers"]
    [:ul (for [c controllers]
-     [:li {:key (.-id c)}
-       (.-name c)])]])
+          [:li {:key (.-id c)}
+           (.-name c)])]])
 
 (defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
-	[:div [:h3 (str "Seq - " (count tracks) " tracks")]
-	 [:div {:style {:display "flex"}}
-	  (for [[{:keys [id name device sequence]} idx] (map vector tracks (range))]
-	      [:div {:style {:margin 10
-                       :background (when (= idx selected-track) :green)}
-	             :key   id}
-	       [:p name]
-	       [output-view sequence
-	        position
-	        (map #(partial % id) [step-clicked handle-val-change nudge])]])]])
+  (prn "sel" selected-track)
+  [:div [:h3 (str "Seq - " (count tracks) " tracks")]
+   [:div {:style {:display "flex"}}
+    (for [[{:keys [id name sequence]} idx] (map vector tracks (range))]
+      [:div {:style {:margin     10
+                     :padding    2
+                     :background (when (= idx selected-track) :green)}
+             :key   id}
+       [:div {:style {:background-color :white
+                      :padding          2}}
+        [:div name]
+        [output-view sequence
+         position
+         (map #(partial % id) [step-clicked handle-val-change nudge])]]])]])
 
 (defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
                                    handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
-                            (let [{:keys [position sustain]} @app-state]
+                            (let [{:keys [position sustain midi launchpad]} @app-state
+                                  controllers (filter lp/is-launchpad? (:inputs midi))
+                                  tracks (c/tracks @app-state)]
                               [:div
-                               [main-view {:tracks           (c/tracks @app-state)
-                                           :selected-track   (get-in @app-state [:launchpad :index])
+                               [main-view {:tracks            tracks
+                                           :selected-track    (when-not (empty? controllers)
+                                                                (or (min (:index launchpad) (dec (count tracks)))
+                                                                    0))
                                            :position          position
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select
@@ -163,9 +171,8 @@
                                                                    (swap! app-state assoc :sequences))
                                               :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
                                                                    (aset js/localStorage %))}]
-                                (let [controllers (filter lp/is-launchpad? (get-in @app-state [:midi :inputs]))]
-                                  (when-not (empty? controllers)
-                                    [controller-view controllers]))]))
+                               (when-not (empty? controllers)
+                                 [controller-view controllers])]))
      :component-did-mount setup-midi!}))
 
 (defn main []
