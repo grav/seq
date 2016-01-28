@@ -124,12 +124,14 @@
             :on-change #(handle-change (js/parseFloat (.-target.value %)))}]
    (str sustain " s")])
 
-(defn controller-view [controllers]
+(defn controller-view [controllers {:keys [modifiers]}]
   [:div
    [:h3 "Connected controllers"]
    [:ul (for [c controllers]
           [:li {:key (.-id c)}
-           (.-name c)])]])
+           (.-name c)])]
+   (for [[n enabled?] modifiers]
+     (when enabled? [:span {:style {:margin 5}} (name n)]))])
 
 (defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
   [:div [:h3 (str "Seq - " (count tracks) " tracks")]
@@ -171,7 +173,7 @@
                                               :handle-save   #(->> (with-out-str (prn (:sequences @app-state)))
                                                                    (aset js/localStorage %))}]
                                (when-not (empty? controllers)
-                                 [controller-view controllers])]))
+                                 [controller-view controllers launchpad])]))
      :component-did-mount setup-midi!}))
 
 (defn main []
