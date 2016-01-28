@@ -132,7 +132,6 @@
            (.-name c)])]])
 
 (defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
-  (prn "sel" selected-track)
   [:div [:h3 (str "Seq - " (count tracks) " tracks")]
    [:div {:style {:display "flex"}}
     (for [[{:keys [id name sequence]} idx] (map vector tracks (range))]
