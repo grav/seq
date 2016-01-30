@@ -1,5 +1,6 @@
 (ns seq.launchpad
-  (:require [seq.scale]))
+  (:require [seq.scale]
+            [seq.util :as util]))
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
@@ -100,10 +101,9 @@
              (= c 127))
     b))
 
-(defn- on-midi-message [tracks-fn launchpad-fn update-launchpad step-clicked e]
+(defn- on-midi-message [tracks launchpad update-launchpad step-clicked e]
   ;; navigation
-  (let [tracks (tracks-fn)
-        {:keys [modifiers] :as launchpad} (launchpad-fn)
+  (let [{:keys [modifiers]} launchpad
         midi-msg (->> e.data
                       (js/Array.from)
                       (js->clj))]
@@ -147,9 +147,24 @@
                 (crop-data)
                 (flatten)))))
 
-(defn init [tracks-fn launchpad-fn update-launchpad lp-in lp-out step-clicked]
-  (set! lp-in.onmidimessage (partial seq.launchpad/on-midi-message tracks-fn launchpad-fn update-launchpad step-clicked))
+(defn init [app-state lp-in lp-out step-clicked]
+  (set! lp-in.onmidimessage (fn [e]
+                              (let [{:keys [midi launchpad sequences]} @app-state]
+                                (seq.launchpad/on-midi-message (->> (:outputs midi)
+                                                                    (remove is-launchpad?)
+                                                                    (util/tracks sequences))
+                                                               launchpad
+                                                               #(swap! app-state assoc :launchpad %)
+                                                               step-clicked e))))
   (let [render-state (atom)]
-    (js/setInterval #(seq.launchpad/on-render (tracks-fn) (launchpad-fn) render-state lp-out)
-                    100)))
+    (js/setInterval
+      #(let [{:keys [sequences midi launchpad]} @app-state]
+        (seq.launchpad/on-render
+          (->> (:outputs midi)
+               (remove is-launchpad?)
+               (util/tracks sequences))
+          launchpad
+          render-state
+          lp-out))
+      100)))
 

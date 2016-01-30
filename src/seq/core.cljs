@@ -1,16 +1,8 @@
 (ns seq.core
   (:require [seq.midi :as m]
             [reagent.core :as r]
-            [seq.launchpad :as lp]))
-
-(defn tracks [{:keys [midi sequences]}]
-  (->> (:outputs midi)
-       (remove lp/is-launchpad?)
-       (map (fn [o] {:name     (.-name o)
-                     :id       (.-id o)
-                     :device   o
-                     :sequence (get sequences (.-id o))}))
-       (sort-by :name)))
+            [seq.launchpad :as lp]
+            [seq.util :as util]))
 
 ;; TODO - how do we do this in a node environment
 (defonce app-state (r/atom {:bpm       120
@@ -43,10 +35,13 @@
        (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
 (defn play-sequence! [beat time]
-  (let [p (mod beat 16)
-        spt (secs-per-tick (:bpm @app-state))
+  (let [{:keys [bpm midi sequences sustain]} @app-state
+        p (mod beat 16)
+        spt (secs-per-tick bpm)
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (for [{:keys [device sequence]} (tracks @app-state)
+        new-notes (for [{:keys [device sequence]} (->> (:outputs midi)
+                                                       (remove lp/is-launchpad?)
+                                                       (util/tracks sequences))
                         :when (:sequence sequence)]
                     {:device     device
                      :next-notes (next-notes sequence p now time spt)
@@ -56,7 +51,7 @@
     (doseq [{:keys [device next-notes channel]} new-notes]
       (doseq [[i vs] next-notes]
         (doseq [v vs]
-          (ding device channel (+ 0x24 v) i (:sustain @app-state)))))
+          (ding device channel (+ 0x24 v) i sustain))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
                                              (apply max))
@@ -88,9 +83,6 @@
         new-seq (assoc seq step-number new-keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
-(defn update-launchpad [l]
-  (swap! app-state assoc :launchpad l))
-
 (defn setup-midi! []
   (let [save-devices! (fn [ma]
                         (let [{:keys [launchpad]} @app-state
@@ -103,7 +95,7 @@
                           (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs midi)))
                                 lp-out (first (filter seq.launchpad/is-launchpad? (:outputs midi)))]
                             (when (and lp-in lp-out)
-                              (->> (seq.launchpad/init #(tracks @app-state) #(:launchpad @app-state) update-launchpad lp-in lp-out seq.core/step-clicked)
+                              (->> (seq.launchpad/init app-state lp-in lp-out seq.core/step-clicked)
                                    (swap! app-state assoc-in [:launchpad :render-callback-id]))))))]
     (-> (js/navigator.requestMIDIAccess)
         (.then (fn [ma]

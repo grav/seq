@@ -3,7 +3,8 @@
             [seq.launchpad :as lp]
             [seq.util]
             [cljs.reader]
-            [seq.core :as c]))
+            [seq.core :as c]
+            [seq.util :as util]))
 
 (enable-console-print!)
 
@@ -153,9 +154,11 @@
                                    handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
-                            (let [{:keys [position sustain midi launchpad]} @app-state
+                            (let [{:keys [position sustain midi launchpad sequences]} @app-state
                                   controllers (filter lp/is-launchpad? (:inputs midi))
-                                  tracks (c/tracks @app-state)]
+                                  tracks (->> (:outputs midi)
+                                              (remove lp/is-launchpad?)
+                                              (util/tracks sequences))]
                               [:div
                                [main-view {:tracks            tracks
                                            :selected-track    (when-not (empty? controllers)
