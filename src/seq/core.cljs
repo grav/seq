@@ -43,10 +43,7 @@
        (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
 (defn play-sequence! [beat time]
-  #_(swap! app-state assoc :pointer (mod beat 16))
-  (let [lp (first (->> (get-in @app-state [:midi :outputs])
-                       (filter false? #_lp/is-launchpad?)))
-        p (mod beat 16)
+  (let [p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
         new-notes (for [{:keys [device sequence]} (tracks @app-state)
@@ -55,9 +52,6 @@
                      :next-notes (next-notes sequence p now time spt)
                      :channel    (or (:channel sequence) 0)})]
     (swap! app-state assoc :position p)
-
-    #_(when lp
-        (ding lp (lp/pad->midi p) now 0.1))
 
     (doseq [{:keys [device next-notes channel]} new-notes]
       (doseq [[i vs] next-notes]
