@@ -10,7 +10,8 @@
                  [reagent "0.5.1"]
                  [figwheel-sidecar "0.4.1"]]
 
-  :plugins [[lein-cljsbuild "1.1.0"]]
+  :plugins [[lein-cljsbuild "1.1.0"]
+            [lein-figwheel "0.4.1"]]
 
   :source-paths ["src"]
 
@@ -18,22 +19,32 @@
 
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "src-web"]
 
               :figwheel {:on-jsload "seq.core/on-js-reload"
                          :websocket-host :js-client-host}
 
-              :compiler {:main seq.core
+              :compiler {:main seq.web
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/seq.js"
                          :output-dir "resources/public/js/compiled/out"
                          :source-map-timestamp true }}
              {:id "min"
-              :source-paths ["src"]
+              :source-paths ["src" "src-web"]
               :compiler {:output-to "resources/public/js/compiled/seq.js"
-                         :main seq.core
+                         :main seq.web
                          :optimizations :advanced
-                         :pretty-print false}}]}
+                         :pretty-print false}}
+             {:id           "nodejs"
+              :source-paths ["src" "src-nodejs"]
+              :compiler     {:main          seq.nodejs
+                             :target        :nodejs
+                             :node-dependencies [[webmidi-shim "0.1.0"]]
+                             :output-dir    "resources/public/js/compiled/deploy_out"
+                             :output-to     "resources/public/js/compiled/nodejs.js"
+                             :asset-path    "js/compiled/deploy_out"
+                             :source-map    "resources/public/js/compiled/deploy.js.map"
+                             :optimizations :none}}]}
 
   :figwheel {
              ;; :http-server-root "public" ;; default and assumes "resources" 

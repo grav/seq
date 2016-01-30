@@ -1,105 +1,77 @@
-(ns ^:figwheel-always seq.core
-  (:require [reagent.core :as r]
-            [goog.object :as g]
-            [seq.util :as u]
-            [seq.midi :as m]
-            [seq.ui :as ui]
+(ns seq.core
+  (:require [seq.midi :as m]
+            [reagent.core :as r]
             [seq.launchpad :as lp]))
 
-(enable-console-print!)
+(defn tracks [{:keys [midi sequences]}]
+  (->> (:outputs midi)
+       (remove lp/is-launchpad?)
+       (map (fn [o] {:name     (.-name o)
+                     :id       (.-id o)
+                     :device   o
+                     :sequence (get sequences (.-id o))}))
+       (sort-by :name)))
 
-(println "Edits to this text should show up in your developer console.")
-
-;; define your app data so that it doesn't get over-written on reload
-
-(defn on-js-reload []
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
-  ;; (swap! app-state update-in [:__figwheel_counter] inc)
-  )
-
+;; TODO - how do we do this in a node environment
 (defonce app-state (r/atom {:bpm       120
                             :sustain   0.12
                             :sequences {}}))
-
-(def latency 0.1)
+(def latency 1)
 
 (defn secs-per-tick
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
-(def all-notes-off [176 123 00])
-
-(def note-on 144)
-
-(def lp-navigation
-  {[176, 104, 127] [:y inc]
-   [176, 105, 127] [:y dec]
-
-   [176, 106, 127] [:x dec]
-
-   [176, 107, 127] [:x inc]})
-
 (defn ding
-  [out v start t]
-  (let [{:keys [channel transpose]
-         :or   {channel 0 transpose 0}} (get-in @app-state [:sequences (.-id out)])
-        t1 (* 1000 start)
+  [out channel v start t]
+  (let [t1 (* 1000 start)
         t2 (* 1000 (+ start t))]
-    (.send out #js [(+ channel 144), (+ v transpose), 0x30] t1)
-    (.send out #js [(+ channel 128), (+ v transpose), 0x00] t2)))
+    (.send out #js [(+ channel 144), v, 0x30] t1)
+    (.send out #js [(+ channel 128), v, 0x00] t2)))
 
+
+(defn- next-notes [{:keys [sequence transpose] :or {transpose 0}} p now time spt]
+  (->> sequence
+       (map (fn [notes] (map #(+ transpose %) notes)))
+       (repeat)
+       (apply concat)
+       (map vector (range))
+       (drop p)
+       (map (fn [[i v]] [(- i p) v]))
+       (map (fn [[i v]] [(* spt i) v]))
+       (map (fn [[i v]] [(+ time i) v]))
+       (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
 (defn play-sequence! [beat time]
   #_(swap! app-state assoc :pointer (mod beat 16))
   (let [lp (first (->> (get-in @app-state [:midi :outputs])
-                       (filter lp/is-launchpad?)))
+                       (filter false? #_lp/is-launchpad?)))
         p (mod beat 16)
         spt (secs-per-tick (:bpm @app-state))
         now (/ (.now (.-performance js/window)) 1000)
-        new-notes (for [[k {:keys [sequence]}] (->> (get-in @app-state [:midi :outputs])
-                                                    (map #(.-id %))
-                                                    (select-keys (get-in @app-state [:sequences])))
-                        :when sequence]
-                    [k (->> sequence
-                            (repeat)
-                            (apply concat)
-                            (map vector (range))
-                            (drop p)
-                            (map (fn [[i v]] [(- i p) v]))
-                            (map (fn [[i v]] [(* spt i) v]))
-                            (map (fn [[i v]] [(+ time i) v]))
-                            (take-while (fn [[i _]] (< i (+ now (* 1.5 latency))))))])]
+        new-notes (for [{:keys [device sequence]} (tracks @app-state)
+                        :when (:sequence sequence)]
+                    {:device     device
+                     :next-notes (next-notes sequence p now time spt)
+                     :channel    (or (:channel sequence) 0)})]
     (swap! app-state assoc :position p)
 
     #_(when lp
-      (ding lp (lp/pad->midi p) now 0.1))
+        (ding lp (lp/pad->midi p) now 0.1))
 
-    (doseq [[k s] new-notes]
-      (when-let [out (-> (get-in @app-state [:midi :outputs])
-                         (m/get-output k))]
-        (doseq [[i vs] s]
-          (doseq [v vs]
-            (ding out (+ 0x24 v) i (:sustain @app-state))))))
+    (doseq [{:keys [device next-notes channel]} new-notes]
+      (doseq [[i vs] next-notes]
+        (doseq [v vs]
+          (ding device channel (+ 0x24 v) i (:sustain @app-state)))))
     (let [diff (- now time)
-          c (max (int (/ diff spt)) (or (->> (map count (map second new-notes))
+          c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
                                              (apply max))
                                         0))
           beat' (+ c beat)
           time' (+ (* spt c) time)]
       (js/setTimeout #(seq.core/play-sequence! beat' time') (* latency 1000)))))
 
-(defn setup-midi! []
-  (let [save-devices! (fn [ma]
-                        (swap! app-state update-in [:midi] merge {:inputs  (-> (.values ma.inputs)
-                                                                               es6-iterator-seq)
-                                                                  :outputs (-> (.values ma.outputs)
-                                                                               es6-iterator-seq)}))]
-    (-> (js/navigator.requestMIDIAccess)
-        (.then (fn [ma]
-                 (save-devices! ma)
-                 ;; Update devices continously
-                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
+
 
 (defn handle-midi-select [state-key selection-key]
   (fn [val]
@@ -111,14 +83,39 @@
 (defn handle-val-change [output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
-(defn step-clicked [output step-number key selected?]
+(defn step-clicked [output step-number key]
+
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
-        keys (->> (get seq step-number)
-                  (cons key)
-                  (remove #(when selected? (= % key))))
-        new-seq (assoc seq step-number keys)]
+        keys (get seq step-number)
+        new-keys (if (contains? (set keys) key)
+                   (remove #(= % key) keys)
+                   (cons key keys))
+        new-seq (assoc seq step-number new-keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
+
+(defn update-launchpad [l]
+  (swap! app-state assoc :launchpad l))
+
+(defn setup-midi! []
+  (let [save-devices! (fn [ma]
+                        (let [{:keys [launchpad]} @app-state
+                              midi {:inputs  (-> (.values ma.inputs)
+                                                 es6-iterator-seq)
+                                    :outputs (-> (.values ma.outputs)
+                                                 es6-iterator-seq)}]
+                          (swap! app-state assoc :midi midi)
+                          (js/clearInterval (:render-callback-id launchpad))
+                          (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs midi)))
+                                lp-out (first (filter seq.launchpad/is-launchpad? (:outputs midi)))]
+                            (when (and lp-in lp-out)
+                              (->> (seq.launchpad/init #(tracks @app-state) #(:launchpad @app-state) update-launchpad lp-in lp-out seq.core/step-clicked)
+                                   (swap! app-state assoc-in [:launchpad :render-callback-id]))))))]
+    (-> (js/navigator.requestMIDIAccess)
+        (.then (fn [ma]
+                 (save-devices! ma)
+                 ;; Update devices continously                
+                 (set! (.-onstatechange ma) #(save-devices! ma)))))))
 
 (defn nudge [id v]
   (when-let [seq (get-in @app-state [:sequences id :sequence])]
@@ -129,88 +126,7 @@
                                                              (take 16)
                                                              vec))))
 
-(defn save! [name]
-  (->>
-    (with-out-str (prn (:sequences @app-state)))
-    (aset js/localStorage name)))
-
-(defn restore! [name]
-  (->> (aget js/localStorage name)
-       (cljs.reader/read-string)
-       (swap! app-state assoc :sequences)))
-
-(r/render [:div
-           [ui/root-view app-state {:did-mount         setup-midi!
-                                    :step-clicked      step-clicked
-                                    :handle-select     handle-midi-select
-                                    :handle-val-change handle-val-change
-                                    :nudge             nudge}]
-           [ui/decay-view app-state #(swap! app-state assoc :sustain %)]
-           [ui/session-view {:handle-select restore!
-                             :handle-save   save!}]] (js/document.getElementById "app"))
 
 (defonce go
          (play-sequence! 0 0))
 
-(defn crop-data
-  ([data]
-   (crop-data data 8 8))
-  ([data width height]
-   (->> data
-        (take height)
-        (map #(take width %)))))
-
-(defn offset-data [x y data]
-  (->> data
-       (drop y)
-       (map #(drop x %))))
-
-(defn render [state lp data]
-  (let [now (/ (.now (.-performance js/window)) 1000)
-        diff (->> data
-                  (map (fn [a b] (when (not= a b) b)) (or @state (repeat false))))]
-    (when (nil? @state)
-      (.send lp (clj->js lp/clear-all) now))
-    (reset! state data)
-    (doseq [[i v] (map vector (range) diff)]
-      (when (true? v)
-        (.send lp #js [144, (lp/pad->midi i), 0x30] now))
-      (when (false? v)
-        (.send lp #js [144, (lp/pad->midi i), 0x00] now)))))
-
-
-(defn sequence->lp-data [sequence]
-  (map #(map (fn [v] (contains? (set v) %)) sequence)
-       (range)))
-
-(comment
-
-  (do
-    (def lp (first (filter lp/is-launchpad? (:outputs (:midi @app-state)))))
-    (js/clearInterval i)
-    (let [render (partial render (atom))]
-
-      (def i (js/setInterval
-               (fn [_]
-                 (let [{:keys [x y]
-                        :or   {x 0
-                               y 0}} (:launchpad @app-state)]
-                   (render lp
-                           (->> (get-in @app-state [:sequences "688368084" :sequence])
-                                (sequence->lp-data)
-                                (offset-data x y)
-                                (crop-data)
-                                (flatten)))))
-               100)))
-
-    (def lp-in (first (filter lp/is-launchpad? (:inputs (:midi @app-state)))))
-    (set! lp-in.onmidimessage (fn [e] (when-let [[k f] (->> e.data
-                                                            (js/Array.from)
-                                                            (js->clj)
-                                                            (get lp/navigation))]
-                                        (let [old-val (or (get-in @app-state [:launchpad k])
-                                                          0)
-                                              new-val (max 0 (f old-val))]
-                                          (swap! app-state assoc-in [:launchpad k] new-val))))))
-
-  )
