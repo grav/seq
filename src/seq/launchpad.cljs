@@ -87,9 +87,9 @@
     (when (nil? @state)
       (.send lp (clj->js clear-all) now))
     (reset! state data)
-    (doseq [[i v] (->> (map vector (range) diff))]
-      (when v
-        (.send lp #js [144, (pad->midi i), (get colors v)] now)))))
+    (doseq [[i v] (->> (map vector (range) diff)
+                       (filter (fn [[_ v]] (some? v))))]
+      (.send lp #js [144, (pad->midi i), (get colors v)] now))))
 
 
 (defn sequence->lp-data [sequence]
