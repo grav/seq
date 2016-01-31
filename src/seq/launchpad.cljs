@@ -2,6 +2,16 @@
   (:require [seq.scale]
             [seq.util :as util]))
 
+(def colors
+  {:colors/off         12
+   :colors/light-red   13
+   :colors/red         15
+   :colors/light-amber 29
+   :colors/amber       63
+   :colors/yellow      62
+   :colors/light-green 28
+   :colors/green       60})
+
 (defn is-launchpad? [d]
   "check if device is a launchpad"
 
@@ -70,23 +80,22 @@
        (map #(drop x %))))
 
 (defn render [state lp data]
+
   (let [now (/ (.now (.-performance js/window)) 1000)
         diff (->> data
-                  (map (fn [a b] (when (not= a b) b)) (or @state (repeat false))))]
+                  (map (fn [a b] (when (not= a b) b)) (or @state (repeat nil))))]
     (when (nil? @state)
       (.send lp (clj->js clear-all) now))
     (reset! state data)
-
-    (doseq [[i v] (map vector (range) diff)]
-      (when (true? v)
-        (.send lp #js [144, (pad->midi i), 0x30] now))
-      (when (false? v)
-        (.send lp #js [144, (pad->midi i), 0x00] now))) 50))
+    (doseq [[i v] (->> (map vector (range) diff))]
+      (when v
+        (.send lp #js [144, (pad->midi i), (get colors v)] now)))))
 
 
 (defn sequence->lp-data [sequence]
-  (map #(map (fn [v] (contains? (set v) %)) sequence)
-       (range) #_(seq.scale/inf-scale seq.scale/penta)))
+  (->> (map #(map (fn [v] (contains? (set v) %)) sequence)
+            (range) #_(seq.scale/inf-scale seq.scale/penta))
+       ))
 
 (defn pad-note [[a b c]]
   (when (and (= a 144)
@@ -127,6 +136,9 @@
     (when-let [{:keys [name enabled?]} (modifier midi-msg)]
       (update-launchpad (merge-with merge launchpad {:modifiers {name enabled?}})))))
 
+(defn last-wins [& vs]
+  (reduce #(or %2 %1) :colors/off vs))
+
 (defn on-render [tracks {:keys [x y index]
                          :or   {x     0
                                 y     0
@@ -140,10 +152,12 @@
                  (offset-data x y)
                  (crop-data)
                  (flatten))]
+
     (render render-state
             lp
-            (->> (map-indexed (fn [i v] (if (= i position) true v)) (repeat 64 false))
-                 (map (fn [a b] (or a b)) data)))))
+            (map last-wins
+                 (map #(when % :colors/green) data)
+                 (map #(when (= % position) :colors/amber) (range))))))
 
 (defn init [app-state lp-in lp-out step-clicked]
   (set! lp-in.onmidimessage (fn [e]
