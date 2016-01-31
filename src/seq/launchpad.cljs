@@ -76,17 +76,12 @@
     (when (nil? @state)
       (.send lp (clj->js clear-all) now))
     (reset! state data)
-    (doseq [[i v] (map vector (range) diff)]
-      (when (true? v)
-        (.send lp #js [144, (pad->midi i), 0x20] now))
-      (when (false? v)
-        (.send lp #js [144, (pad->midi i), 0x20] now)))
 
-    (js/setTimeout #(doseq [[i v] (map vector (range) diff)]
-                     (when (true? v)
-                       (.send lp #js [144, (pad->midi i), 0x30] now))
-                     (when (false? v)
-                       (.send lp #js [144, (pad->midi i), 0x00] now))) 50)))
+    #(doseq [[i v] (map vector (range) diff)]
+      (when (true? v)
+        (.send lp #js [144, (pad->midi i), 0x30] now))
+      (when (false? v)
+        (.send lp #js [144, (pad->midi i), 0x00] now))) 50))
 
 
 (defn sequence->lp-data [sequence]
