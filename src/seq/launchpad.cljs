@@ -131,16 +131,19 @@
                          :or   {x     0
                                 y     0
                                 index 0}}
+                 position
                  render-state lp]
   (let [idx (min index (dec (count tracks)))
-        sequence (get-in (vec tracks) [idx :sequence :sequence])]
+        sequence (get-in (vec tracks) [idx :sequence :sequence])
+        data (-> (or sequence (repeat '()))
+                 (sequence->lp-data)
+                 (offset-data x y)
+                 (crop-data)
+                 (flatten))]
     (render render-state
             lp
-            (-> (or sequence (repeat '()))
-                (sequence->lp-data)
-                (offset-data x y)
-                (crop-data)
-                (flatten)))))
+            (->> (map-indexed (fn [i v] (if (= i position) true v)) (repeat 64 false))
+                 (map (fn [a b] (or a b)) data)))))
 
 (defn init [app-state lp-in lp-out step-clicked]
   (set! lp-in.onmidimessage (fn [e]
@@ -153,12 +156,13 @@
                                                                step-clicked e))))
   (let [render-state (atom)]
     (js/setInterval
-      #(let [{:keys [sequences midi launchpad]} @app-state]
+      #(let [{:keys [sequences midi launchpad position]} @app-state]
         (seq.launchpad/on-render
           (->> (:outputs midi)
                (remove is-launchpad?)
                (util/tracks sequences))
           launchpad
+          position
           render-state
           lp-out))
       100)))
