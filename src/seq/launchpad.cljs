@@ -77,7 +77,7 @@
       (.send lp (clj->js clear-all) now))
     (reset! state data)
 
-    #(doseq [[i v] (map vector (range) diff)]
+    (doseq [[i v] (map vector (range) diff)]
       (when (true? v)
         (.send lp #js [144, (pad->midi i), 0x30] now))
       (when (false? v)
