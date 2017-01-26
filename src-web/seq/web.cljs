@@ -150,7 +150,7 @@
          position
          (map #(partial % id) [step-clicked handle-val-change nudge])]]])]])
 
-(defn root-view [app-state {:keys [setup-midi! step-clicked handle-midi-select
+(defn root-view [app-state {:keys [setup-midi! play-sequence! step-clicked handle-midi-select
                                    handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
@@ -178,10 +178,12 @@
                                                                    (aset js/localStorage %))}]
                                (when-not (empty? controllers)
                                  [controller-view controllers launchpad])]))
-     :component-did-mount setup-midi!}))
+     :component-did-mount #(do (setup-midi!)
+                               (play-sequence! 0 0))}))
 
 (defn main []
   (reagent.core/render [root-view c/app-state {:setup-midi!        c/setup-midi!
+                                               :play-sequence!     (partial c/play-sequence! #(.now (.-performance js/window)))
                                                :step-clicked       c/step-clicked
                                                :handle-midi-select c/handle-midi-select
                                                :handle-val-change  c/handle-val-change

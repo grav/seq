@@ -34,11 +34,11 @@
        (map (fn [[i v]] [(+ time i) v]))
        (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
-(defn play-sequence! [beat time]
+(defn play-sequence! [now-fn beat time]
   (let [{:keys [bpm midi sequences sustain]} @app-state
         p (mod beat 16)
         spt (secs-per-tick bpm)
-        now (/ (.now (.-performance js/window)) 1000)
+        now (/ (now-fn) 1000)
         new-notes (for [{:keys [device sequence]} (->> (:outputs midi)
                                                        (remove lp/is-launchpad?)
                                                        (util/tracks sequences))
@@ -58,7 +58,7 @@
                                         0))
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(seq.core/play-sequence! beat' time') (* latency 1000)))))
+      (js/setTimeout #(seq.core/play-sequence! now-fn beat' time') (* latency 1000)))))
 
 
 
@@ -112,7 +112,4 @@
                                                              (take 16)
                                                              vec))))
 
-
-(defonce go
-         (play-sequence! 0 0))
 
