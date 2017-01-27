@@ -2,56 +2,55 @@
   :description "FIXME: write this!"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
+            :url  "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.122"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [reagent "0.6.0-rc"]
-                 [figwheel-sidecar "0.4.1"]]
+                 [figwheel-sidecar "0.5.8"]]
 
   :plugins [[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1"]]
+            [lein-figwheel "0.5.8"]]
 
   :source-paths ["src"]
 
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
 
   :cljsbuild {
-    :builds [{:id "dev"
-              :source-paths ["src" "src-web"]
+              :builds [{:id           "dev"
+                        :source-paths ["src" "src-web"]
 
-              :figwheel {:on-jsload "seq.core/on-js-reload"
-                         :websocket-host :js-client-host}
+                        :figwheel     {:on-jsload      "seq.core/on-js-reload"
+                                       :websocket-host :js-client-host}
 
-              :compiler {:main seq.web
-                         :asset-path "js/compiled/out"
-                         :output-to "resources/public/js/compiled/seq.js"
-                         :output-dir "resources/public/js/compiled/out"
-                         :source-map-timestamp true }}
-             {:id "min"
-              :source-paths ["src" "src-web"]
-              :compiler {:output-to "resources/public/js/compiled/seq.js"
-                         :main seq.web
-                         :optimizations :advanced
-                         :pretty-print false}}
-             {:id           "nodejs"
-              :source-paths ["src" "src-nodejs"]
-              :compiler     {:main          seq.nodejs
-                             :target        :nodejs
-                             :node-dependencies [[webmidi-shim "0.1.0"]]
-                             :output-dir    "resources/public/js/compiled/deploy_out"
-                             :output-to     "resources/public/js/compiled/nodejs.js"
-                             :asset-path    "js/compiled/deploy_out"
-                             :source-map    "resources/public/js/compiled/deploy.js.map"
-                             :optimizations :none}}]}
+                        :compiler     {:main                 seq.web
+                                       :asset-path           "js/compiled/out"
+                                       :output-to            "resources/public/js/compiled/seq.js"
+                                       :output-dir           "resources/public/js/compiled/out"
+                                       :source-map-timestamp true}}
+                       {:id           "min"
+                        :source-paths ["src" "src-web"]
+                        :compiler     {:output-to     "resources/public/js/compiled/seq.js"
+                                       :main          seq.web
+                                       :optimizations :advanced
+                                       :pretty-print  false}}
+                       {:id           "nodejs"
+                        :figwheel     true
+                        :source-paths ["src" "src-nodejs"]
+                        :compiler     {:main          seq.nodejs
+                                       :target        :nodejs
+                                       :output-dir    "target/nodejs"
+                                       :output-to     "target/nodejs/main.js"
+                                       :source-map    true
+                                       :optimizations :none}}]}
 
   :figwheel {
              ;; :http-server-root "public" ;; default and assumes "resources" 
              ;; :server-port 3449 ;; default
              ;; :server-ip "127.0.0.1" 
 
-             :css-dirs ["resources/public/css"] ;; watch and update CSS
+             :css-dirs ["resources/public/css"]             ;; watch and update CSS
 
              ;; Start an nREPL server into the running figwheel process
              ;; :nrepl-port 7888

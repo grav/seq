@@ -1,13 +1,8 @@
 (ns seq.core
   (:require [seq.midi :as m]
-            [reagent.core :as r]
             [seq.launchpad :as lp]
             [seq.util :as util]))
 
-;; TODO - how do we do this in a node environment
-(defonce app-state (r/atom {:bpm       120
-                            :sustain   0.12
-                            :sequences {}}))
 (def latency 0.3)
 
 (defn secs-per-tick
@@ -34,7 +29,7 @@
        (map (fn [[i v]] [(+ time i) v]))
        (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
-(defn play-sequence! [now-fn beat time]
+(defn play-sequence! [app-state now-fn beat time]
   (let [{:keys [bpm midi sequences sustain]} @app-state
         p (mod beat 16)
         spt (secs-per-tick bpm)
@@ -58,21 +53,21 @@
                                         0))
           beat' (+ c beat)
           time' (+ (* spt c) time)]
-      (js/setTimeout #(seq.core/play-sequence! now-fn beat' time') (* latency 1000)))))
+      (js/setTimeout #(seq.core/play-sequence! app-state now-fn beat' time') (* latency 1000)))))
 
 
 
-(defn handle-midi-select [state-key selection-key]
+(defn handle-midi-select [app-state state-key selection-key]
   (fn [val]
     (let [selected (->> (get-in @app-state [:midi state-key])
                         (filter #(= (.-id %) val))
                         (first))]
       (swap! app-state assoc-in [:midi selection-key] selected))))
 
-(defn handle-val-change [output key val]
+(defn handle-val-change [app-state output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
-(defn step-clicked [output step-number key]
+(defn step-clicked [app-state output step-number key]
 
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
@@ -83,7 +78,10 @@
         new-seq (assoc seq step-number new-keys)]
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
-(defn setup-midi! []
+(defn setup-midi! [app-state requestMIDIAccess now-fn]
+  (reset! app-state {:bpm       120
+                     :sustain   0.12
+                     :sequences {}})
   (let [save-devices! (fn [ma]
                         (let [{:keys [launchpad]} @app-state
                               midi {:inputs  (-> (.values ma.inputs)
@@ -95,15 +93,15 @@
                           (let [lp-in (first (filter seq.launchpad/is-launchpad? (:inputs midi)))
                                 lp-out (first (filter seq.launchpad/is-launchpad? (:outputs midi)))]
                             (when (and lp-in lp-out)
-                              (->> (seq.launchpad/init app-state lp-in lp-out seq.core/step-clicked)
+                              (->> (seq.launchpad/init app-state now-fn lp-in lp-out (partial seq.core/step-clicked app-state))
                                    (swap! app-state assoc-in [:launchpad :render-callback-id]))))))]
-    (-> (js/navigator.requestMIDIAccess)
+    (-> (requestMIDIAccess)
         (.then (fn [ma]
                  (save-devices! ma)
                  ;; Update devices continously                
                  (set! (.-onstatechange ma) #(save-devices! ma)))))))
 
-(defn nudge [id v]
+(defn nudge [app-state id v]
   (when-let [seq (get-in @app-state [:sequences id :sequence])]
     (swap! app-state assoc-in [:sequences id :sequence] (->> seq
                                                              (repeat)

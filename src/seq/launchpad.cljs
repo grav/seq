@@ -14,8 +14,10 @@
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
+  (-> (.-name d)
+      #{"Launchpad Mini" "Launchpad"})
 
-  (-> {:lp-mini {:name "Launchpad Mini"
+  #_(-> {:lp-mini {:name "Launchpad Mini"
                  :manu "Focusrite A.E. Ltd"}
        :lp      {:name "Launchpad"
                  :manu "Novation DMS Ltd"}}
@@ -79,9 +81,9 @@
        (drop y)
        (map #(drop x %))))
 
-(defn render [state lp data]
+(defn render [now-fn state lp data]
 
-  (let [now (/ (.now (.-performance js/window)) 1000)
+  (let [now (/ (now-fn) 1000)
         diff (->> data
                   (map (fn [a b] (when (not= a b) b)) (or @state (repeat nil))))]
     (when (nil? @state)
@@ -139,7 +141,7 @@
 (defn last-wins [& vs]
   (reduce #(or %2 %1) :colors/off vs))
 
-(defn on-render [tracks {:keys [x y index]
+(defn on-render [now-fn tracks {:keys [x y index]
                          :or   {x     0
                                 y     0
                                 index 0}}
@@ -153,13 +155,13 @@
                  (crop-data)
                  (flatten))]
 
-    (render render-state
+    (render now-fn render-state
             lp
             (map last-wins
                  (map #(when % :colors/green) data)
                  (map #(when (= % position) :colors/amber) (range))))))
 
-(defn init [app-state lp-in lp-out step-clicked]
+(defn init [app-state now-fn lp-in lp-out step-clicked]
   (set! lp-in.onmidimessage (fn [e]
                               (let [{:keys [midi launchpad sequences]} @app-state]
                                 (seq.launchpad/on-midi-message (->> (:outputs midi)
@@ -172,6 +174,7 @@
     (js/setInterval
       #(let [{:keys [sequences midi launchpad position]} @app-state]
         (seq.launchpad/on-render
+          now-fn
           (->> (:outputs midi)
                (remove is-launchpad?)
                (util/tracks sequences))

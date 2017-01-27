@@ -1,12 +1,21 @@
-(ns seq.nodejs
-  (:require [cljs.nodejs :as nodejs]))
+(ns  ^:figwheel-always seq.nodejs
+  (:require [cljs.nodejs :as nodejs]
+            [seq.core :as seq]))
 
 (nodejs/enable-util-print!)
 
 (def midi-access (nodejs/require "webmidi-shim"))
 
+(defonce app-state (atom nil))
+
 (defn -main [& args]
-  (-> (midi-access.requestMIDIAccess)
+  (let [nav (nodejs/require "webmidi-shim")
+        now (nodejs/require "performance-now")]
+    (seq/setup-midi! app-state nav.requestMIDIAccess now)
+    (seq/play-sequence! app-state now 0 0))
+
+
+  #_(-> (midi-access.requestMIDIAccess)
       (.then (fn [ma]
                (-> (ma.outputs.values)
                    es6-iterator-seq

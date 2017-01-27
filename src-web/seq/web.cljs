@@ -181,11 +181,14 @@
      :component-did-mount #(do (setup-midi!)
                                (play-sequence! 0 0))}))
 
+(defonce app-state (r/atom nil))
+
 (defn main []
-  (reagent.core/render [root-view c/app-state {:setup-midi!        c/setup-midi!
-                                               :play-sequence!     (partial c/play-sequence! #(.now (.-performance js/window)))
-                                               :step-clicked       c/step-clicked
-                                               :handle-midi-select c/handle-midi-select
-                                               :handle-val-change  c/handle-val-change
-                                               :nudge              c/nudge}]
-                       (js/document.getElementById "app")))
+  (let [now-fn #(.now (.-performance js/window))]
+    (reagent.core/render [root-view app-state {:setup-midi!        (partial c/setup-midi! app-state #(js/navigator.requestMIDIAccess) now-fn)
+                                               :play-sequence!     (partial c/play-sequence! app-state now-fn)
+                                               :step-clicked       (partial c/step-clicked app-state)
+                                               :handle-midi-select (partial c/handle-midi-select app-state)
+                                               :handle-val-change  (partial c/handle-val-change app-state)
+                                               :nudge              (partial c/nudge app-state)}]
+                         (js/document.getElementById "app"))))
