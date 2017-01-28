@@ -89,6 +89,7 @@
     (when (nil? @state)
       (.send lp (clj->js clear-all) now))
     (reset! state data)
+    ;; Could probably take advantage of double buffering here
     (doseq [[i v] (->> (map vector (range) diff)
                        (filter (fn [[_ v]] (some? v))))]
       (.send lp #js [144, (pad->midi i), (get colors v)] now))))
