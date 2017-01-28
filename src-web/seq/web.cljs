@@ -1,4 +1,4 @@
-(ns ^:figwheel-always seq.web
+(ns seq.web
   (:require [reagent.core :as r]
             [seq.launchpad :as lp]
             [seq.util]
