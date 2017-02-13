@@ -87,7 +87,7 @@
 
 
 (defn sequence->lp-data [sequence]
-  (->> (map #(map (fn [v] (contains? (set v) %)) sequence)
+  (->> (map #(map (fn [v] ((set (map :note v)) %)) sequence)
             (range) #_(seq.scale/inf-scale seq.scale/penta))
        ))
 

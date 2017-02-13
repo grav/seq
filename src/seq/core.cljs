@@ -19,7 +19,9 @@
 
 (defn- next-notes [{:keys [sequence transpose] :or {transpose 0}} p now time spt]
   (->> sequence
-       (map (fn [notes] (map #(+ transpose %) notes)))
+       (map (fn [notes] (->> notes
+                             (map (fn [{:keys [note]
+                                        :as   v}] (assoc v :note (+ transpose note)))))))
        (repeat)
        (apply concat)
        (map vector (range))
@@ -30,7 +32,7 @@
        (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
 
 (defn play-sequence! [app-state now-fn beat time]
-  (let [{:keys [bpm midi sequences sustain]} @app-state
+  (let [{:keys [bpm midi sequences]} @app-state
         p (mod beat 16)
         spt (secs-per-tick bpm)
         now (/ (now-fn) 1000)
@@ -45,8 +47,8 @@
 
     (doseq [{:keys [device next-notes channel]} new-notes]
       (doseq [[i vs] next-notes]
-        (doseq [v vs]
-          (ding device channel (+ 0x24 v) i sustain))))
+        (doseq [{:keys [note sustain]} vs]
+          (ding device channel (+ 0x24 note) i sustain))))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
                                              (apply max))
@@ -67,15 +69,16 @@
 (defn handle-val-change [app-state output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
-(defn step-clicked [app-state output step-number key]
-
+(defn step-clicked [app-state output step-number k]
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
-        keys (get seq step-number)
-        new-keys (if (contains? (set keys) key)
-                   (remove #(= % key) keys)
-                   (cons key keys))
+        notes (get seq step-number)
+        new-keys (if ((set (map :note notes)) k)
+                   (remove (fn [{:keys [note]}] (= note k)) notes)
+                   (cons {:note    k
+                          :sustain 0.3} notes))
         new-seq (assoc seq step-number new-keys)]
+    (prn "k" k)
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))
 
 (defn setup-midi! [app-state requestMIDIAccess now-fn]

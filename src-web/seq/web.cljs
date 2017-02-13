@@ -40,23 +40,24 @@
 (defn seq-view [{:keys [sequence step-clicked offset position]}]
   [:div
    [:div {:style {:display "flex"}}
-    (map (fn [[i vs]]
-           [:div {:key i}
-            (->> (reverse (take 16 (drop offset (range))))
-                 (map (fn [j] (contains? (set vs) j)))
-                 (map (fn [j selected]
-                        [:div {:key            j
-                               :on-click       #(step-clicked i j)
-                               :on-touch-start #(step-clicked i j)
-                               :style          {:background-color (if (black-key? j)
-                                                                    "#777"
-                                                                    :black)}}
-                         [step {:selected?   selected
-                                :playing?    (= i position)
-                                :step-number i
-                                :key         j}]])
-                      (reverse (take 16 (drop offset (range))))))])
-         (->> (or sequence (repeat 16 [])) (map vector (range))))]])
+    (->> (or sequence (repeat 16 []))
+         (map vector (range))
+         (map (fn [[i vs]]
+                [:div {:key i}
+                 (->> (reverse (take 16 (drop offset (range))))
+                      (map (fn [j] ((set (map :note vs)) j)))
+                      (map (fn [j selected]
+                             [:div {:key            j
+                                    :on-click       #(step-clicked i j)
+                                    :on-touch-start #(step-clicked i j)
+                                    :style          {:background-color (if (black-key? j)
+                                                                         "#777"
+                                                                         :black)}}
+                              [step {:selected?   selected
+                                     :playing?    (= i position)
+                                     :step-number i
+                                     :key         j}]])
+                           (reverse (take 16 (drop offset (range))))))])))]])
 
 (defn up-down [{:keys [text val handle-val-change min-val max-val]}]
   [:div {:style {:display "flex"}}
