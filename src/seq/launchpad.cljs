@@ -14,17 +14,8 @@
 
 (defn is-launchpad? [d]
   "check if device is a launchpad"
-  (-> (.-name d)
-      #{"Launchpad Mini" "Launchpad"})
-
-  #_(-> {:lp-mini {:name "Launchpad Mini"
-                 :manu "Focusrite A.E. Ltd"}
-       :lp      {:name "Launchpad"
-                 :manu "Novation DMS Ltd"}}
-      (vals)
-      (set)
-      (contains? {:name (.-name d)
-                  :manu (.-manufacturer d)})))
+  (->> (.-name d)
+       (re-matches #"Launchpad.*")))
 
 (defn modifier [[a b vel]]
   (when-let [modifier (-> {[176 108] :modifier/session
