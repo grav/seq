@@ -45,10 +45,10 @@
                      :channel    (or (:channel sequence) 0)})]
     (swap! app-state assoc :position p)
 
-    (doseq [{:keys [device next-notes channel]} new-notes]
-      (doseq [[i vs] next-notes]
-        (doseq [{:keys [note sustain]} vs]
-          (ding device channel (+ 0x24 note) i sustain))))
+    (doseq [{:keys [device next-notes channel]} new-notes
+            [i vs] next-notes
+            {:keys [note sustain]} vs]
+      (ding device channel (+ 0x24 note) i sustain))
     (let [diff (- now time)
           c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
                                              (apply max))
