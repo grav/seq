@@ -19,17 +19,16 @@
 
 (defn- next-notes [{:keys [sequence transpose] :or {transpose 0}} p now time spt]
   (->> sequence
+       ;; TODO - doesn't belong here - it's for transposing?
        (map (fn [notes] (->> notes
                              (map (fn [{:keys [note]
-                                        :as   v}] (assoc v :note (+ transpose note)))))))
+                                        :as   v}]
+                                    (assoc v :note (+ transpose note)))))))
        (repeat)
        (apply concat)
-       (map vector (range))
        (drop p)
-       (map (fn [[i v]] [(- i p) v]))
-       (map (fn [[i v]] [(* spt i) v]))
-       (map (fn [[i v]] [(+ time i) v]))
-       (take-while (fn [[i _]] (< i (+ now (* 1.5 latency)))))))
+       (map-indexed (fn [i v] [(+ time (* i spt)) v]))
+       (take-while (fn [[t _]] (< t (+ now (* 1.5 latency)))))))
 
 (defn play-sequence! [app-state now-fn beat time]
   (let [{:keys [bpm midi sequences]} @app-state
