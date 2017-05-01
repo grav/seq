@@ -68,14 +68,13 @@
 (defn handle-val-change [app-state output key val]
   (swap! app-state assoc-in [:sequences output key] val))
 
-(defn step-clicked [app-state output step-number k]
+(defn step-clicked [app-state output step-number k a s]
   (let [seq (or (get-in @app-state [:sequences output :sequence])
                 (vec (repeat 16 [])))
         notes (get seq step-number)
-        new-keys (if ((set (map :note notes)) k)
-                   (remove (fn [{:keys [note]}] (= note k)) notes)
-                   (cons {:note    k
-                          :sustain 0.3} notes))
+        new-keys (cond->> (remove (fn [{:keys [note]}] (= note k)) notes)
+                          (not= a :off) (cons {:note    k
+                                               :sustain s}))
         new-seq (assoc seq step-number new-keys)]
     (prn "k" k)
     (swap! app-state assoc-in [:sequences output :sequence] new-seq)))

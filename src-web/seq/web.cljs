@@ -37,6 +37,21 @@
 (defn black-key? [j]
   (contains? #{1 3 6 8 10} (mod j 12)))
 
+(defn ctrl-view [{:keys [sequence step-clicked]}]
+  [:div
+   [:span "Sustain"]
+   (->> sequence
+        (map-indexed (fn [i ns]
+                       (for [{:keys [note sustain]} ns]
+                         [:div {:key note} (str i "," note ": ")
+                          [:input {:type      :range
+                                   :min       0 :max 100
+                                   :value     (* 100 sustain)
+                                   :step      1
+                                   :on-change #(let [v (/ (js/parseInt (.-value (.-target %))) 100)]
+                                                 (step-clicked i note :edit v))}]
+                          sustain]))))])
+
 (defn seq-view [{:keys [sequence step-clicked offset position]}]
   [:div
    [:div {:style {:display "flex"}}
@@ -47,16 +62,17 @@
                  (->> (reverse (take 16 (drop offset (range))))
                       (map (fn [j] ((set (map :note vs)) j)))
                       (map (fn [j selected]
-                             [:div {:key            j
-                                    :on-click       #(step-clicked i j)
-                                    :on-touch-start #(step-clicked i j)
-                                    :style          {:background-color (if (black-key? j)
-                                                                         "#777"
-                                                                         :black)}}
-                              [step {:selected?   selected
-                                     :playing?    (= i position)
-                                     :step-number i
-                                     :key         j}]])
+                             (let [f #(step-clicked i j (if selected :off :on) 0.3)]
+                               [:div {:key            j
+                                      :on-click       f
+                                      :on-touch-start f
+                                      :style          {:background-color (if (black-key? j)
+                                                                           "#777"
+                                                                           :black)}}
+                                [step {:selected?   selected
+                                       :playing?    (= i position)
+                                       :step-number i
+                                       :key         j}]]))
                            (reverse (take 16 (drop offset (range))))))])))]])
 
 (defn up-down [{:keys [text val handle-val-change min-val max-val]}]
@@ -75,6 +91,8 @@
                     handle-val-change
                     nudge]]
   [:div
+   [ctrl-view {:sequence sequence
+               :step-clicked step-clicked}]
    [seq-view {:sequence     sequence
               :step-clicked step-clicked
               :channel      channel
@@ -134,7 +152,7 @@
            (.-name c)])]
    (for [[n enabled?] modifiers]
      (when enabled? [:span {:style {:margin 5}
-                            :key (str n)} (name n)]))])
+                            :key   (str n)} (name n)]))])
 
 (defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
   [:div [:h3 (str "Seq - " (count tracks) " tracks")]
