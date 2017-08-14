@@ -91,7 +91,7 @@
                     handle-val-change
                     nudge]]
   [:div
-   [ctrl-view {:sequence sequence
+   [ctrl-view {:sequence     sequence
                :step-clicked step-clicked}]
    [seq-view {:sequence     sequence
               :step-clicked step-clicked
@@ -169,6 +169,34 @@
          position
          (map #(partial % id) [step-clicked handle-val-change nudge])]]])]])
 
+(def latency 1)
+
+(defn ding
+  [out channel v start t]
+  (let [t1 (* 1000 start)
+        t2 (* 1000 (+ start t))]
+    (.send out #js [(+ channel 144), v, 0x30] t1)
+    (.send out #js [(+ channel 128), v, 0x00] t2)))
+
+(defn play-repeatedly
+  ([init]
+   (play-repeatedly init {:beat 0 :time 0}))
+  ([{:keys [app-state play-sequence! now-fn]} {:keys [beat time]}]
+
+   (let [{:keys [position notes]
+          :as   res} (play-sequence! latency
+                                     @app-state
+                                     (/ (now-fn) 1000)
+                                     beat time)]
+     (doseq [n notes]
+       (apply ding n))
+     (swap! app-state assoc :position position)
+     (js/setTimeout #(play-repeatedly {:app-state      app-state
+                                       :now-fn         now-fn
+                                       :play-sequence! play-sequence!}
+                                      res)
+                    (* latency 1000)))))
+
 (defn root-view [app-state {:keys [setup-midi! play-sequence! step-clicked handle-midi-select
                                    handle-val-change nudge]}]
   (r/create-class
@@ -183,6 +211,7 @@
                                            :selected-track    (when-not (empty? controllers)
                                                                 (or (min (:index launchpad) (dec (count tracks)))
                                                                     0))
+
                                            :position          position
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select
@@ -197,15 +226,18 @@
                                                                    (aset js/localStorage %))}]
                                (when-not (empty? controllers)
                                  [controller-view controllers launchpad])]))
-     :component-did-mount #(do (setup-midi!)
-                               (play-sequence! 0 0))}))
+     :component-did-mount (fn []
+                            (setup-midi!)
+                            (play-repeatedly {:app-state      app-state
+                                              :now-fn         #(.now (.-performance js/window))
+                                              :play-sequence! play-sequence!}))}))
 
 (defonce app-state (r/atom nil))
 
 (defn main []
-  (let [now-fn #(.now (.-performance js/window))]
-    (reagent.core/render [root-view app-state {:setup-midi!        (partial c/setup-midi! app-state #(js/navigator.requestMIDIAccess) now-fn)
-                                               :play-sequence!     (partial c/play-sequence! app-state now-fn)
+  (let []
+    (reagent.core/render [root-view app-state {:setup-midi!        (partial c/setup-midi! app-state #(js/navigator.requestMIDIAccess) #(.now (.-performance js/window)))
+                                               :play-sequence!     c/play-sequence!
                                                :step-clicked       (partial c/step-clicked app-state)
                                                :handle-midi-select (partial c/handle-midi-select app-state)
                                                :handle-val-change  (partial c/handle-val-change app-state)

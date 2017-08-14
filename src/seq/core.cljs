@@ -3,21 +3,12 @@
             [seq.launchpad :as lp]
             [seq.util :as util]))
 
-(def latency 0.3)
 
 (defn secs-per-tick
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
-(defn ding
-  [out channel v start t]
-  (let [t1 (* 1000 start)
-        t2 (* 1000 (+ start t))]
-    (.send out #js [(+ channel 144), v, 0x30] t1)
-    (.send out #js [(+ channel 128), v, 0x00] t2)))
-
-
-(defn- next-notes [{:keys [sequence transpose] :or {transpose 0}} p now time spt]
+(defn- next-notes [latency {:keys [sequence transpose] :or {transpose 0}} p now time spt]
   (->> sequence
        ;; TODO - doesn't belong here - it's for transposing?
        (map (fn [notes] (->> notes
@@ -30,31 +21,33 @@
        (map-indexed (fn [i v] [(+ time (* i spt)) v]))
        (take-while (fn [[t _]] (< t (+ now (* 1.5 latency)))))))
 
-(defn play-sequence! [app-state now-fn beat time]
-  (let [{:keys [bpm midi sequences]} @app-state
+(defn play-sequence! [latency app-state now beat time]
+  ":notes - notes to be immediately queued up
+   :beat :time - pointers to next "
+  (let [{:keys [bpm midi sequences]} app-state
         p (mod beat 16)
         spt (secs-per-tick bpm)
-        now (/ (now-fn) 1000)
         new-notes (for [{:keys [device sequence]} (->> (:outputs midi)
                                                        (remove lp/is-launchpad?)
                                                        (util/tracks sequences))
                         :when (:sequence sequence)]
                     {:device     device
-                     :next-notes (next-notes sequence p now time spt)
-                     :channel    (or (:channel sequence) 0)})]
-    (swap! app-state assoc :position p)
-
-    (doseq [{:keys [device next-notes channel]} new-notes
-            [i vs] next-notes
-            {:keys [note sustain]} vs]
-      (ding device channel (+ 0x24 note) i sustain))
-    (let [diff (- now time)
-          c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
-                                             (apply max))
-                                        0))
-          beat' (+ c beat)
-          time' (+ (* spt c) time)]
-      (js/setTimeout #(seq.core/play-sequence! app-state now-fn beat' time') (* latency 1000)))))
+                     :next-notes (next-notes latency sequence p now time spt)
+                     :channel    (or (:channel sequence) 0)})
+        notes (for [{:keys [device next-notes channel]} new-notes
+                    [i vs] next-notes
+                    {:keys [note sustain]} vs]
+                [device channel (+ 0x24 note) i sustain])
+        diff (- now time)
+        c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
+                                           (apply max))
+                                      0))
+        beat' (+ c beat)
+        time' (+ (* spt c) time)]
+    {:beat     beat'
+     :time     time'
+     :position p
+     :notes    notes}))
 
 
 
