@@ -183,12 +183,17 @@
    (play-repeatedly init {:beat 0 :time 0}))
   ([{:keys [app-state play-sequence! now-fn]} {:keys [beat time]}]
 
-   (let [{:keys [position notes]
+   (let [{:keys [bpm]} @app-state
+         {:keys [position sequences]
           :as   res} (play-sequence! latency
+                                     bpm
                                      @app-state
                                      (/ (now-fn) 1000)
                                      beat time)]
-     (doseq [n notes]
+     (doseq [n (for [{:keys [device notes channel]} sequences
+                     [i vs] notes
+                     {:keys [note sustain]} vs]
+                 [device channel (+ 0x24 note) i sustain])]
        (apply ding n))
      (swap! app-state assoc :position position)
      (js/setTimeout #(play-repeatedly {:app-state      app-state
@@ -237,7 +242,7 @@
 (defn main []
   (let []
     (reagent.core/render [root-view app-state {:setup-midi!        (partial c/setup-midi! app-state #(js/navigator.requestMIDIAccess) #(.now (.-performance js/window)))
-                                               :play-sequence!     c/play-sequence!
+                                               :play-sequence!     c/play-sequences!
                                                :step-clicked       (partial c/step-clicked app-state)
                                                :handle-midi-select (partial c/handle-midi-select app-state)
                                                :handle-val-change  (partial c/handle-val-change app-state)

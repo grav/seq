@@ -12,7 +12,7 @@
   (let [nav (nodejs/require "webmidi-shim")
         now (nodejs/require "performance-now")]
     (seq/setup-midi! app-state nav.requestMIDIAccess now)
-    (seq/play-sequence! app-state now 0 0))
+    (seq/play-sequences! app-state now 0 0))
 
 
   #_(-> (midi-access.requestMIDIAccess)

@@ -21,33 +21,30 @@
        (map-indexed (fn [i v] [(+ time (* i spt)) v]))
        (take-while (fn [[t _]] (< t (+ now (* 1.5 latency)))))))
 
-(defn play-sequence! [latency app-state now beat time]
+(defn play-sequences! [latency bpm app-state now beat time]
   ":notes - notes to be immediately queued up
    :beat :time - pointers to next "
-  (let [{:keys [bpm midi sequences]} app-state
+  (let [{:keys [midi sequences]} app-state
         p (mod beat 16)
         spt (secs-per-tick bpm)
-        new-notes (for [{:keys [device sequence]} (->> (:outputs midi)
+        sequences (for [{:keys [device sequence]} (->> (:outputs midi)
                                                        (remove lp/is-launchpad?)
                                                        (util/tracks sequences))
                         :when (:sequence sequence)]
-                    {:device     device
-                     :next-notes (next-notes latency sequence p now time spt)
-                     :channel    (or (:channel sequence) 0)})
-        notes (for [{:keys [device next-notes channel]} new-notes
-                    [i vs] next-notes
-                    {:keys [note sustain]} vs]
-                [device channel (+ 0x24 note) i sustain])
+                    {:device  device
+                     :notes   (next-notes latency sequence p now time spt)
+                     :channel (or (:channel sequence) 0)})
+
         diff (- now time)
-        c (max (int (/ diff spt)) (or (->> (map count (map :next-notes new-notes))
+        c (max (int (/ diff spt)) (or (->> (map count (map :notes sequences))
                                            (apply max))
                                       0))
         beat' (+ c beat)
         time' (+ (* spt c) time)]
-    {:beat     beat'
-     :time     time'
-     :position p
-     :notes    notes}))
+    {:beat      beat'
+     :time      time'
+     :position  p
+     :sequences sequences}))
 
 
 
