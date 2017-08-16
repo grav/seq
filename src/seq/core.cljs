@@ -42,7 +42,6 @@
         time' (+ (* spt c) time)]
     {:beat      beat'
      :time      time'
-     :position  (mod beat 16)
      :sequences sequences}))
 
 

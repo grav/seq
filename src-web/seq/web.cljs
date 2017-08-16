@@ -86,7 +86,7 @@
                     :or   {channel   0
                            offset    0
                            transpose 0}}
-                   position
+                   beat
                    [step-clicked
                     handle-val-change
                     nudge]]
@@ -97,7 +97,7 @@
               :step-clicked step-clicked
               :channel      channel
               :offset       offset
-              :position     position}]
+              :position     (mod beat (count sequence))}]
    [:div (map (fn [[key val min max]]
                 [:div {:key key}
                  [up-down {:text              (name key)
@@ -154,7 +154,7 @@
      (when enabled? [:span {:style {:margin 5}
                             :key   (str n)} (name n)]))])
 
-(defn main-view [{:keys [tracks position step-clicked handle-val-change nudge selected-track]}]
+(defn main-view [{:keys [tracks beat step-clicked handle-val-change nudge selected-track]}]
   [:div [:h3 (str "Seq - " (count tracks) " tracks")]
    [:div {:style {:display "flex"}}
     (for [[{:keys [id name sequence]} idx] (map vector tracks (range))]
@@ -166,10 +166,10 @@
                       :padding          2}}
         [:div name]
         [output-view sequence
-         position
+         beat
          (map #(partial % id) [step-clicked handle-val-change nudge])]]])]])
 
-(def latency 1)
+(def latency 0.1)
 
 (defn ding
   [out channel v start t]
@@ -183,6 +183,8 @@
    (play-repeatedly init {:beat 0 :time 0}))
   ([{:keys [app-state play-sequence! now-fn]} {:keys [beat time]}]
 
+
+
    (let [{:keys [bpm]} @app-state
          {:keys [position sequences]
           :as   res} (play-sequence! latency
@@ -195,7 +197,7 @@
                      {:keys [note sustain]} vs]
                  [device channel (+ 0x24 note) i sustain])]
        (apply ding n))
-     (swap! app-state assoc :position position)
+     (swap! app-state assoc :beat beat)
      (js/setTimeout #(play-repeatedly {:app-state      app-state
                                        :now-fn         now-fn
                                        :play-sequence! play-sequence!}
@@ -206,7 +208,7 @@
                                    handle-val-change nudge]}]
   (r/create-class
     {:reagent-render      (fn []
-                            (let [{:keys [position sustain midi launchpad sequences]} @app-state
+                            (let [{:keys [beat sustain midi launchpad sequences]} @app-state
                                   controllers (filter lp/is-launchpad? (:inputs midi))
                                   tracks (->> (:outputs midi)
                                               (remove lp/is-launchpad?)
@@ -217,7 +219,7 @@
                                                                 (or (min (:index launchpad) (dec (count tracks)))
                                                                     0))
 
-                                           :position          position
+                                           :beat          beat
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select
                                            :handle-val-change handle-val-change
