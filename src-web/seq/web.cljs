@@ -82,35 +82,42 @@
    [:button {:on-click #(handle-val-change (min max-val (inc val)))} "▲"]
    [:button {:on-click #(handle-val-change (max min-val (dec val)))} "▼"]])
 
-(defn output-view [{:keys [sequence channel offset transpose]
-                    :or   {channel   0
-                           offset    0
-                           transpose 0}}
-                   beat
-                   [step-clicked
-                    handle-val-change
-                    nudge]]
-  [:div
-   [ctrl-view {:sequence     sequence
-               :step-clicked step-clicked}]
-   [seq-view {:sequence     sequence
-              :step-clicked step-clicked
-              :channel      channel
-              :offset       offset
-              :position     (mod beat (count sequence))}]
-   [:div (map (fn [[key val min max]]
-                [:div {:key key}
-                 [up-down {:text              (name key)
-                           :val               val
-                           :handle-val-change (partial handle-val-change key)
-                           :min-val           min
-                           :max-val           max}]])
-              [[:channel channel 0 15]
-               [:offset offset 0 40]
-               [:transpose transpose -24 24]])
-    [:div "Nudge"
-     [:button {:on-click #(nudge -1)} "←"]
-     [:button {:on-click #(nudge 1)} "→"]]]])
+(defn output-view []
+  (let [state (reagent.core/atom nil)]
+    (fn [{:keys [sequence channel offset transpose]
+          :or   {channel   0
+                 offset    0
+                 transpose 0}}
+         beat
+         [step-clicked
+          handle-val-change
+          nudge]]
+      [:div
+       [seq-view {:sequence     sequence
+                  :step-clicked step-clicked
+                  :channel      channel
+                  :offset       offset
+                  :position     (mod beat (count sequence))}]
+       [:div
+        [:label [:input {:type      :checkbox
+                         :checked (:show-ctrl? @state)
+                         :on-change (partial swap! state update :show-ctrl? not)}] "Ctrl"]
+        (when (:show-ctrl? @state)
+          [ctrl-view {:sequence     sequence
+                      :step-clicked step-clicked}])]
+       [:div (map (fn [[key val min max]]
+                    [:div {:key key}
+                     [up-down {:text              (name key)
+                               :val               val
+                               :handle-val-change (partial handle-val-change key)
+                               :min-val           min
+                               :max-val           max}]])
+                  [[:channel channel 0 15]
+                   [:offset offset 0 40]
+                   [:transpose transpose -24 24]])
+        [:div "Nudge"
+         [:button {:on-click #(nudge -1)} "←"]
+         [:button {:on-click #(nudge 1)} "→"]]]])))
 
 (defn refresh-sessions! [state]
   (swap! state assoc :sessions (-> js/localStorage
@@ -169,7 +176,7 @@
          beat
          (map #(partial % id) [step-clicked handle-val-change nudge])]]])]])
 
-(def latency 0.1)
+(def latency 1)
 
 (defn ding
   [out channel v start t]
@@ -219,7 +226,7 @@
                                                                 (or (min (:index launchpad) (dec (count tracks)))
                                                                     0))
 
-                                           :beat          beat
+                                           :beat              beat
                                            :step-clicked      step-clicked
                                            :handle-select     handle-midi-select
                                            :handle-val-change handle-val-change
