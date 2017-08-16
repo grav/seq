@@ -8,7 +8,7 @@
   [bpm]
   (/ (/ 1 (/ bpm 60)) 4))
 
-(defn- next-notes [latency {:keys [sequence transpose] :or {transpose 0}} p now time spt]
+(defn- next-notes [latency {:keys [sequence transpose] :or {transpose 0}} beat now time spt]
   (->> sequence
        ;; TODO - doesn't belong here - it's for transposing?
        (map (fn [notes] (->> notes
@@ -17,7 +17,7 @@
                                     (assoc v :note (+ transpose note)))))))
        (repeat)
        (apply concat)
-       (drop p)
+       (drop (mod beat (count sequence)))
        (map-indexed (fn [i v] [(+ time (* i spt)) v]))
        (take-while (fn [[t _]] (< t (+ now (* 1.5 latency)))))))
 
@@ -25,14 +25,13 @@
   ":notes - notes to be immediately queued up
    :beat :time - pointers to next "
   (let [{:keys [midi sequences]} app-state
-        p (mod beat 16)
         spt (secs-per-tick bpm)
         sequences (for [{:keys [device sequence]} (->> (:outputs midi)
                                                        (remove lp/is-launchpad?)
                                                        (util/tracks sequences))
                         :when (:sequence sequence)]
                     {:device  device
-                     :notes   (next-notes latency sequence p now time spt)
+                     :notes   (next-notes latency sequence beat now time spt)
                      :channel (or (:channel sequence) 0)})
 
         diff (- now time)
@@ -43,7 +42,7 @@
         time' (+ (* spt c) time)]
     {:beat      beat'
      :time      time'
-     :position  p
+     :position  (mod beat 16)
      :sequences sequences}))
 
 
