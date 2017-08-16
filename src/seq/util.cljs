@@ -5,6 +5,10 @@
        (map (fn [k] [k (aget m k)]))
        (into {})))
 
+(defn secs-per-tick
+  [bpm]
+  (/ (/ 1 (/ bpm 60)) 4))
+
 (defn tracks [sequences outputs]
   (->> outputs
        (map (fn [o] {:name     (.-name o)

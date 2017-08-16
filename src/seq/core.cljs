@@ -4,10 +4,6 @@
             [seq.util :as util]))
 
 
-(defn secs-per-tick
-  [bpm]
-  (/ (/ 1 (/ bpm 60)) 4))
-
 (defn- next-notes [latency {:keys [sequence transpose] :or {transpose 0}} beat now time spt]
   (->> sequence
        ;; TODO - doesn't belong here - it's for transposing?
@@ -25,7 +21,7 @@
   ":notes - notes to be immediately queued up
    :beat :time - pointers to next "
   (let [{:keys [midi sequences]} app-state
-        spt (secs-per-tick bpm)
+        spt (util/secs-per-tick bpm)
         sequences (for [{:keys [device sequence]} (->> (:outputs midi)
                                                        (remove lp/is-launchpad?)
                                                        (util/tracks sequences))
