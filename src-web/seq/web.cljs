@@ -242,7 +242,7 @@
 (defn main []
   (let []
     (reagent.core/render [root-view app-state {:setup-midi!        (partial c/setup-midi! app-state #(js/navigator.requestMIDIAccess) #(.now (.-performance js/window)))
-                                               :play-sequence!     c/play-sequences!
+                                               :play-sequence!     #'c/play-sequences!
                                                :step-clicked       (partial c/step-clicked app-state)
                                                :handle-midi-select (partial c/handle-midi-select app-state)
                                                :handle-val-change  (partial c/handle-val-change app-state)
