@@ -20,6 +20,10 @@
                    :when (number? n)]
                {:note n}))))
 
+(comment
+  (->> (seq.transform/foo-> [0 * * * 0 * * * 0 * * * 0 * * *])
+       (seq.transform/set-s seq.web/app-state 3)))
+
 (defn leip-> [l & [{:keys [length bpm]
                     :or   {length (->> l
                                        (map (fn [{:keys [time duration]}]
@@ -39,3 +43,17 @@
     (for [i (range length)]
       (or (get steps i) '()))))
 
+
+(comment
+  (let [phrase (->> (mel/phrase
+                      [1 1]
+                      [(-> chord/triad (chord/root 3))
+                       (-> chord/triad (chord/inversion 2) (chord/root 4))])
+                    (mel/then
+                      (->> (mel/phrase [1]
+                                       [(-> chord/triad (chord/inversion 1) (chord/root 0))])
+                           (mel/where :pitch (partial + 7))))
+                    (mel/where :pitch (comp scale/C scale/major))
+                    )]
+    (->> (leip-> phrase {:length 16})
+         (set-s seq.web/app-state 2))))
