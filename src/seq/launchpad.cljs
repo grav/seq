@@ -162,7 +162,7 @@
                                                                launchpad
                                                                #(swap! app-state assoc :launchpad %)
                                                                step-clicked e))))
-  (let [render-state (atom)]
+  (let [render-state (atom nil)]
     (js/setInterval
       #(let [{:keys [sequences midi launchpad position]} @app-state]
         (seq.launchpad/on-render
